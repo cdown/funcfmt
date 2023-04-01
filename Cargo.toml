@@ -1,0 +1,10 @@
+[package]
+name = "func_template"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+thiserror = "1.0.39"
+
+[dev-dependencies]
+lazy_static = "1.4.0"
