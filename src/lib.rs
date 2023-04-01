@@ -143,4 +143,14 @@ mod tests {
         let fmt = render(&inp, &fp);
         assert_eq!(fmt, Ok("一bar foo bar二{bar}".to_owned()));
     }
+
+    #[test]
+    fn unknown_field() {
+        // Done in a somewhat weird way since FormatPiece is not PartialEq
+        if let Err(err) = process_to_formatpieces(&FORMATTERS, "一{baz}二{bar}") {
+            assert_eq!(err, FormatError::UnknownField("baz".to_string()));
+            return;
+        }
+        panic!();
+    }
 }
