@@ -93,7 +93,7 @@ pub fn render<T: ?Sized>(data: &T, pieces: &Vec<FormatPiece<T>>) -> Result<Strin
 #[macro_export]
 macro_rules! fm {
     ($name:tt, $cb:expr) => {
-        ftempl::Formatter {
+        Formatter {
             name: $name.to_string(),
             cb: $cb,
         }
@@ -107,18 +107,9 @@ mod tests {
 
     lazy_static! {
         static ref FORMATTERS: Vec<Formatter<String>> = vec![
-            Formatter {
-                name: "foo".to_string(),
-                cb: |e| Some(format!("{e} foo {e}")),
-            },
-            Formatter {
-                name: "bar".to_string(),
-                cb: |e| Some(format!("{e} bar {e}")),
-            },
-            Formatter {
-                name: "nodata".to_string(),
-                cb: |_| None,
-            },
+            fm!("foo", |e| Some(format!("{e} foo {e}"))),
+            fm!("bar", |e| Some(format!("{e} bar {e}"))),
+            fm!("nodata", |_| None),
         ];
     }
 
