@@ -105,6 +105,10 @@ mod tests {
                 name: "bar".to_string(),
                 cb: |e| Some(format!("{e} bar {e}")),
             },
+            Formatter {
+                name: "nodata".to_string(),
+                cb: |_| None,
+            },
         ];
     }
 
@@ -152,5 +156,15 @@ mod tests {
             return;
         }
         panic!();
+    }
+
+    #[test]
+    fn no_data() {
+        let inp = String::from("bar");
+        let fp = process_to_formatpieces(&FORMATTERS, "一{foo}二{nodata}").unwrap();
+        assert_eq!(
+            render(&inp, &fp),
+            Err(FormatError::NoData("nodata".to_string()))
+        );
     }
 }
