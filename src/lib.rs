@@ -32,12 +32,19 @@ pub enum FormatPiece<'a, T: ?Sized> {
 }
 
 pub trait ToFormatPieces<T> {
-    fn to_format_pieces(&self, tmpl: &str) -> Result<Vec<FormatPiece<'_, T>>, FormatError>;
+    fn to_format_pieces<S: AsRef<str>>(
+        &self,
+        tmpl: S,
+    ) -> Result<Vec<FormatPiece<'_, T>>, FormatError>;
 }
 
 impl<T> ToFormatPieces<T> for Vec<Formatter<T>> {
-    fn to_format_pieces(&self, tmpl: &str) -> Result<Vec<FormatPiece<'_, T>>, FormatError> {
+    fn to_format_pieces<S: AsRef<str>>(
+        &self,
+        tmpl: S,
+    ) -> Result<Vec<FormatPiece<'_, T>>, FormatError> {
         // Need to be a bit careful to not index inside a character boundary
+        let tmpl = tmpl.as_ref();
         let tmpl_vec = tmpl.chars().collect::<Vec<_>>();
         let mut chars = tmpl_vec.iter().enumerate().peekable();
 
