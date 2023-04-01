@@ -74,20 +74,27 @@ pub fn process_to_formatpieces<'a, T>(
     Ok(out)
 }
 
-pub fn render<T: ?Sized>(data: &T, pieces: &Vec<FormatPiece<T>>) -> Result<String, FormatError> {
-    // Ballpark guess large enough to usually avoid extra allocations
-    let mut out = String::with_capacity(pieces.len().checked_mul(4).ok_or(FormatError::Overflow)?);
-    for piece in pieces {
-        match *piece {
-            FormatPiece::Char(c) => out.push(c),
-            FormatPiece::Formatter(f) => write!(
-                &mut out,
-                "{}",
-                (f.cb)(data).ok_or_else(|| FormatError::NoData(f.name.to_string()))?
-            )?,
+pub trait Render<T: ?Sized> {
+    fn render(&self, data: &T) -> Result<String, FormatError>;
+}
+
+impl<T> Render<T> for Vec<FormatPiece<'_, T>> {
+    fn render(&self, data: &T) -> Result<String, FormatError> {
+        // Ballpark guess large enough to usually avoid extra allocations
+        let mut out =
+            String::with_capacity(self.len().checked_mul(4).ok_or(FormatError::Overflow)?);
+        for piece in self {
+            match *piece {
+                FormatPiece::Char(c) => out.push(c),
+                FormatPiece::Formatter(f) => write!(
+                    &mut out,
+                    "{}",
+                    (f.cb)(data).ok_or_else(|| FormatError::NoData(f.name.to_string()))?
+                )?,
+            }
         }
+        Ok(out)
     }
-    Ok(out)
 }
 
 #[macro_export]
@@ -117,7 +124,7 @@ mod tests {
     fn unicode_ok() {
         let inp = String::from("bar");
         let fp = process_to_formatpieces(&FORMATTERS, "一{foo}二{bar}").unwrap();
-        let fmt = render(&inp, &fp);
+        let fmt = fp.render(&inp);
         assert_eq!(fmt, Ok("一bar foo bar二bar bar bar".to_owned()));
     }
 
@@ -145,7 +152,7 @@ mod tests {
     fn imbalance_escaped() {
         let inp = String::from("bar");
         let fp = process_to_formatpieces(&FORMATTERS, "一{foo}二{{bar}}").unwrap();
-        let fmt = render(&inp, &fp);
+        let fmt = fp.render(&inp);
         assert_eq!(fmt, Ok("一bar foo bar二{bar}".to_owned()));
     }
 
@@ -164,7 +171,7 @@ mod tests {
         let inp = String::from("bar");
         let fp = process_to_formatpieces(&FORMATTERS, "一{foo}二{nodata}").unwrap();
         assert_eq!(
-            render(&inp, &fp),
+            fp.render(&inp),
             Err(FormatError::NoData("nodata".to_string()))
         );
     }

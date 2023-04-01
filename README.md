@@ -13,5 +13,4 @@ The basic flow of func_template looks like this:
    `Vec<FormatPiece<T>>`, where `&T` is what your callback function will take
    as its only argument. This allows avoiding having to reparse the formatters
    and go through the template each time things are processed.
-2. Pass the argument your callback function will take and the
-   `Vec<FormatPiece<T>` into `render`.
+2. Call .render(data) on the `Vec<FormatPiece<T>>`.

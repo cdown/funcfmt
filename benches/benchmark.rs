@@ -17,7 +17,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     let fmtpieces = process_to_formatpieces(&formatters, &fmtstr).unwrap();
 
     c.bench_function("render", |b| {
-        b.iter(|| render(black_box(&String::from("data")), black_box(&fmtpieces)))
+        b.iter(|| fmtpieces.render(black_box(&String::from("data"))))
     });
 }
 
