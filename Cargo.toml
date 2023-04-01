@@ -8,3 +8,8 @@ thiserror = "1.0.39"
 
 [dev-dependencies]
 lazy_static = "1.4.0"
+criterion = "0.4.0"
+
+[[bench]]
+name = "benchmark"
+harness = false
