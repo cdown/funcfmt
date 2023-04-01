@@ -110,7 +110,7 @@ impl<T> Render<T> for Vec<FormatPiece<'_, T>> {
 #[macro_export]
 macro_rules! fm {
     ($name:tt, $cb:expr) => {
-        Formatter {
+        $crate::Formatter {
             name: $name.to_string(),
             cb: $cb,
         }
