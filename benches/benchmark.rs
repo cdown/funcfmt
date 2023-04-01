@@ -9,8 +9,15 @@ fn criterion_benchmark(c: &mut Criterion) {
         formatters.push(fm!(i, |e| Some(format!("_{e}_"))));
         write!(&mut fmtstr, "{{{}}}", i).unwrap();
     }
+
     c.bench_function("process_to_formatpieces", |b| {
         b.iter(|| process_to_formatpieces(black_box(&formatters), black_box(&fmtstr)))
+    });
+
+    let fmtpieces = process_to_formatpieces(&formatters, &fmtstr).unwrap();
+
+    c.bench_function("render", |b| {
+        b.iter(|| render(black_box(&String::from("data")), black_box(&fmtpieces)))
     });
 }
 
