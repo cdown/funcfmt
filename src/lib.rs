@@ -90,6 +90,16 @@ pub fn render<T: ?Sized>(data: &T, pieces: &Vec<FormatPiece<T>>) -> Result<Strin
     Ok(out)
 }
 
+#[macro_export]
+macro_rules! fm {
+    ($name:tt, $cb:expr) => {
+        ftempl::Formatter {
+            name: $name.to_string(),
+            cb: $cb,
+        }
+    };
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
