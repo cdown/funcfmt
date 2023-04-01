@@ -31,47 +31,50 @@ pub enum FormatPiece<'a, T: ?Sized> {
     Formatter(&'a Formatter<T>),
 }
 
-pub fn process_to_formatpieces<'a, T>(
-    formatters: &'a [Formatter<T>],
-    tmpl: &str,
-) -> Result<Vec<FormatPiece<'a, T>>, FormatError> {
-    // Need to be a bit careful to not index inside a character boundary
-    let tmpl_vec = tmpl.chars().collect::<Vec<_>>();
-    let mut chars = tmpl_vec.iter().enumerate().peekable();
+pub trait ToFormatPieces<T> {
+    fn to_format_pieces(&self, tmpl: &str) -> Result<Vec<FormatPiece<'_, T>>, FormatError>;
+}
 
-    // Ballpark guesses large enough to usually avoid extra allocations
-    let mut out: Vec<FormatPiece<T>> = Vec::with_capacity(tmpl.len());
-    let mut start_word_idx = 0;
+impl<T> ToFormatPieces<T> for Vec<Formatter<T>> {
+    fn to_format_pieces(&self, tmpl: &str) -> Result<Vec<FormatPiece<'_, T>>, FormatError> {
+        // Need to be a bit careful to not index inside a character boundary
+        let tmpl_vec = tmpl.chars().collect::<Vec<_>>();
+        let mut chars = tmpl_vec.iter().enumerate().peekable();
 
-    while let Some((idx, cur)) = chars.next() {
-        match (cur, start_word_idx) {
-            (&'{', 0) => {
-                start_word_idx = idx.checked_add(1).ok_or(FormatError::Overflow)?;
-            }
-            (&'{', s) if idx.checked_sub(s).ok_or(FormatError::Overflow)? == 0 => {
-                out.push(FormatPiece::Char(*cur));
-                start_word_idx = 0;
-            }
-            (&'{', _) => return Err(FormatError::MismatchedBrackets),
-            (&'}', 0) if chars.next_if(|&(_, c)| c == &'}').is_some() => {
-                out.push(FormatPiece::Char(*cur));
-            }
-            (&'}', 0) => return Err(FormatError::MismatchedBrackets),
-            (&'}', s) => {
-                let word = String::from_iter(&tmpl_vec[s..idx]);
-                match formatters.iter().find(|&f| f.name == word) {
-                    Some(f) => out.push(FormatPiece::Formatter(f)),
-                    None => return Err(FormatError::UnknownField(word)),
-                };
-                start_word_idx = 0;
-            }
+        // Ballpark guesses large enough to usually avoid extra allocations
+        let mut out: Vec<FormatPiece<T>> = Vec::with_capacity(tmpl.len());
+        let mut start_word_idx = 0;
 
-            (_, s) if s > 0 => {}
-            (c, _) => out.push(FormatPiece::Char(*c)),
+        while let Some((idx, cur)) = chars.next() {
+            match (cur, start_word_idx) {
+                (&'{', 0) => {
+                    start_word_idx = idx.checked_add(1).ok_or(FormatError::Overflow)?;
+                }
+                (&'{', s) if idx.checked_sub(s).ok_or(FormatError::Overflow)? == 0 => {
+                    out.push(FormatPiece::Char(*cur));
+                    start_word_idx = 0;
+                }
+                (&'{', _) => return Err(FormatError::MismatchedBrackets),
+                (&'}', 0) if chars.next_if(|&(_, c)| c == &'}').is_some() => {
+                    out.push(FormatPiece::Char(*cur));
+                }
+                (&'}', 0) => return Err(FormatError::MismatchedBrackets),
+                (&'}', s) => {
+                    let word = String::from_iter(&tmpl_vec[s..idx]);
+                    match self.iter().find(|&f| f.name == word) {
+                        Some(f) => out.push(FormatPiece::Formatter(f)),
+                        None => return Err(FormatError::UnknownField(word)),
+                    };
+                    start_word_idx = 0;
+                }
+
+                (_, s) if s > 0 => {}
+                (c, _) => out.push(FormatPiece::Char(*c)),
+            }
         }
-    }
 
-    Ok(out)
+        Ok(out)
+    }
 }
 
 pub trait Render<T: ?Sized> {
@@ -123,7 +126,7 @@ mod tests {
     #[test]
     fn unicode_ok() {
         let inp = String::from("bar");
-        let fp = process_to_formatpieces(&FORMATTERS, "一{foo}二{bar}").unwrap();
+        let fp = FORMATTERS.to_format_pieces("一{foo}二{bar}").unwrap();
         let fmt = fp.render(&inp);
         assert_eq!(fmt, Ok("一bar foo bar二bar bar bar".to_owned()));
     }
@@ -131,7 +134,7 @@ mod tests {
     #[test]
     fn imbalance_open() {
         // Done in a somewhat weird way since FormatPiece is not PartialEq
-        if let Err(err) = process_to_formatpieces(&FORMATTERS, "一{f{oo}二{bar}") {
+        if let Err(err) = FORMATTERS.to_format_pieces("一{f{oo}二{bar}") {
             assert_eq!(err, FormatError::MismatchedBrackets);
             return;
         }
@@ -141,7 +144,7 @@ mod tests {
     #[test]
     fn imbalance_close() {
         // Done in a somewhat weird way since FormatPiece is not PartialEq
-        if let Err(err) = process_to_formatpieces(&FORMATTERS, "一{foo}}二{bar}") {
+        if let Err(err) = FORMATTERS.to_format_pieces("一{foo}}二{bar}") {
             assert_eq!(err, FormatError::MismatchedBrackets);
             return;
         }
@@ -151,7 +154,7 @@ mod tests {
     #[test]
     fn imbalance_escaped() {
         let inp = String::from("bar");
-        let fp = process_to_formatpieces(&FORMATTERS, "一{foo}二{{bar}}").unwrap();
+        let fp = FORMATTERS.to_format_pieces("一{foo}二{{bar}}").unwrap();
         let fmt = fp.render(&inp);
         assert_eq!(fmt, Ok("一bar foo bar二{bar}".to_owned()));
     }
@@ -159,7 +162,7 @@ mod tests {
     #[test]
     fn unknown_field() {
         // Done in a somewhat weird way since FormatPiece is not PartialEq
-        if let Err(err) = process_to_formatpieces(&FORMATTERS, "一{baz}二{bar}") {
+        if let Err(err) = FORMATTERS.to_format_pieces("一{baz}二{bar}") {
             assert_eq!(err, FormatError::UnknownField("baz".to_string()));
             return;
         }
@@ -169,7 +172,7 @@ mod tests {
     #[test]
     fn no_data() {
         let inp = String::from("bar");
-        let fp = process_to_formatpieces(&FORMATTERS, "一{foo}二{nodata}").unwrap();
+        let fp = FORMATTERS.to_format_pieces("一{foo}二{nodata}").unwrap();
         assert_eq!(
             fp.render(&inp),
             Err(FormatError::NoData("nodata".to_string()))

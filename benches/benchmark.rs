@@ -11,10 +11,10 @@ fn criterion_benchmark(c: &mut Criterion) {
     }
 
     c.bench_function("process_to_formatpieces", |b| {
-        b.iter(|| process_to_formatpieces(black_box(&formatters), black_box(&fmtstr)))
+        b.iter(|| formatters.to_format_pieces(black_box(&fmtstr)))
     });
 
-    let fmtpieces = process_to_formatpieces(&formatters, &fmtstr).unwrap();
+    let fmtpieces = formatters.to_format_pieces(&fmtstr).unwrap();
 
     c.bench_function("render", |b| {
         b.iter(|| fmtpieces.render(black_box(&String::from("data"))))
