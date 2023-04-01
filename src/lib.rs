@@ -53,20 +53,20 @@ impl<T> ToFormatPieces<T> for Vec<Formatter<T>> {
         let mut start_word_idx = 0;
 
         while let Some((idx, cur)) = chars.next() {
-            match (cur, start_word_idx) {
-                (&'{', 0) => {
+            match (*cur, start_word_idx) {
+                ('{', 0) => {
                     start_word_idx = idx.checked_add(1).ok_or(FormatError::Overflow)?;
                 }
-                (&'{', s) if idx.checked_sub(s).ok_or(FormatError::Overflow)? == 0 => {
+                ('{', s) if idx.checked_sub(s).ok_or(FormatError::Overflow)? == 0 => {
                     out.push(FormatPiece::Char(*cur));
                     start_word_idx = 0;
                 }
-                (&'{', _) => return Err(FormatError::MismatchedBrackets),
-                (&'}', 0) if chars.next_if(|&(_, c)| c == &'}').is_some() => {
+                ('{', _) => return Err(FormatError::MismatchedBrackets),
+                ('}', 0) if chars.next_if(|&(_, c)| c == &'}').is_some() => {
                     out.push(FormatPiece::Char(*cur));
                 }
-                (&'}', 0) => return Err(FormatError::MismatchedBrackets),
-                (&'}', s) => {
+                ('}', 0) => return Err(FormatError::MismatchedBrackets),
+                ('}', s) => {
                     let word = String::from_iter(&tmpl_vec[s..idx]);
                     match self.iter().find(|&f| f.name == word) {
                         Some(f) => out.push(FormatPiece::Formatter(f)),
@@ -76,7 +76,7 @@ impl<T> ToFormatPieces<T> for Vec<Formatter<T>> {
                 }
 
                 (_, s) if s > 0 => {}
-                (c, _) => out.push(FormatPiece::Char(*c)),
+                (c, _) => out.push(FormatPiece::Char(c)),
             }
         }
 
