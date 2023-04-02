@@ -5,14 +5,14 @@ use thiserror::Error;
 /// An error produced during formatting.
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum Error {
-    /// A field was requested, but it has no entry in the provided `FormatMap<T>`. Stores the field
+    /// A key was requested, but it has no entry in the provided `FormatMap<T>`. Stores the key
     /// name which was unknown.
-    #[error("unknown field '{0}'")]
-    UnknownField(String),
+    #[error("unknown key '{0}'")]
+    UnknownKey(String),
 
-    /// No data available for a callback. Stores the field name which had no data available, i.e.,
+    /// No data available for a callback. Stores the key name which had no data available, i.e.,
     /// the callback returned `None`.
-    #[error("no data for field '{0}'")]
+    #[error("no data for key '{0}'")]
     NoData(String),
 
     /// The template provided had imbalanced brackets. If you want to escape { or }, use {{ or }}
@@ -79,7 +79,7 @@ impl<T> ToFormatPieces<T> for FormatMap<T> {
                         Some(f) => {
                             out.push(FormatPiece::Formatter(Formatter { name: word, cb: *f }))
                         }
-                        None => return Err(Error::UnknownField(word)),
+                        None => return Err(Error::UnknownKey(word)),
                     };
                     start_word_idx = 0;
                 }
@@ -172,10 +172,10 @@ mod tests {
     }
 
     #[test]
-    fn unknown_field() {
+    fn unknown_key() {
         // Done in a somewhat weird way since FormatPiece is not PartialEq
         if let Err(err) = FORMATTERS.to_format_pieces("一{baz}二{bar}") {
-            assert_eq!(err, Error::UnknownField("baz".to_string()));
+            assert_eq!(err, Error::UnknownKey("baz".to_string()));
             return;
         }
         panic!();
