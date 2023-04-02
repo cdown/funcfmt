@@ -10,7 +10,7 @@ The basic flow of func_template looks like this:
 
 1. Given a `FormatMap<T>` called `formatters`, call
    `formatters.to_format_pieces()`, which preprocesses everything into a
-   `Vec<FormatPiece<T>>`, where `&T` is what your callback function will take
-   as its only argument. This allows avoiding having to reparse the formatters
-   and go through the template each time things are processed.
-2. Call .render(data) on the `Vec<FormatPiece<T>>`.
+   `FormatPieces<T>`, where `&T` is what your callback function will take as
+   its only argument. This allows avoiding having to reparse the formatters and
+   go through the template each time things are processed.
+2. Call .render(data) on the `FormatPieces<T>`.

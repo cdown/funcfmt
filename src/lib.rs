@@ -22,6 +22,7 @@ pub enum FormatError {
 
 pub type FormatterCallback<T> = fn(&T) -> Option<String>;
 pub type FormatMap<T> = HashMap<String, FormatterCallback<T>>;
+pub type FormatPieces<T> = Vec<FormatPiece<T>>;
 
 pub struct Formatter<T: ?Sized> {
     pub name: String,
@@ -34,18 +35,18 @@ pub enum FormatPiece<T: ?Sized> {
 }
 
 pub trait ToFormatPieces<T> {
-    fn to_format_pieces<S: AsRef<str>>(&self, tmpl: S) -> Result<Vec<FormatPiece<T>>, FormatError>;
+    fn to_format_pieces<S: AsRef<str>>(&self, tmpl: S) -> Result<FormatPieces<T>, FormatError>;
 }
 
 impl<T> ToFormatPieces<T> for FormatMap<T> {
-    fn to_format_pieces<S: AsRef<str>>(&self, tmpl: S) -> Result<Vec<FormatPiece<T>>, FormatError> {
+    fn to_format_pieces<S: AsRef<str>>(&self, tmpl: S) -> Result<FormatPieces<T>, FormatError> {
         // Need to be a bit careful to not index inside a character boundary
         let tmpl = tmpl.as_ref();
         let tmpl_vec = tmpl.chars().collect::<Vec<_>>();
         let mut chars = tmpl_vec.iter().enumerate().peekable();
 
         // Ballpark guesses large enough to usually avoid extra allocations
-        let mut out: Vec<FormatPiece<T>> = Vec::with_capacity(tmpl.len());
+        let mut out: FormatPieces<T> = FormatPieces::with_capacity(tmpl.len());
         let mut start_word_idx = 0;
 
         while let Some((idx, cur)) = chars.next() {
@@ -86,7 +87,7 @@ pub trait Render<T: ?Sized> {
     fn render(&self, data: &T) -> Result<String, FormatError>;
 }
 
-impl<T> Render<T> for Vec<FormatPiece<T>> {
+impl<T> Render<T> for FormatPieces<T> {
     fn render(&self, data: &T) -> Result<String, FormatError> {
         // Ballpark guess large enough to usually avoid extra allocations
         let mut out =
