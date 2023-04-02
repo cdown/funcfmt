@@ -283,4 +283,12 @@ mod tests {
     fn error_from_fmt_error() {
         assert_eq!(Error::from(std::fmt::Error), Error::Write(std::fmt::Error));
     }
+
+    #[test]
+    fn error_display() {
+        assert_eq!(
+            Error::Write(std::fmt::Error).to_string(),
+            "std::fmt::Write error"
+        );
+    }
 }
