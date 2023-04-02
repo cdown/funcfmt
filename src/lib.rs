@@ -278,4 +278,9 @@ mod tests {
             Some(&Error::ImbalancedBrackets)
         );
     }
+
+    #[test]
+    fn error_from_fmt_error() {
+        assert_eq!(Error::from(std::fmt::Error), Error::Write(std::fmt::Error));
+    }
 }
