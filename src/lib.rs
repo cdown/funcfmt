@@ -30,15 +30,22 @@ pub enum Error {
     Write(#[from] std::fmt::Error),
 }
 
+/// A callback to be provided with data during rendering.
 pub type FormatterCallback<T> = fn(&T) -> Option<String>;
+
+/// A mapping of keys to callback functions.
 pub type FormatMap<T> = HashMap<String, FormatterCallback<T>>;
+
+/// A container of either plain `Char`s or function callbacks to be called later in `render`.
 pub type FormatPieces<T> = Vec<FormatPiece<T>>;
 
+/// A container around the callback that also contains the name of the key.
 pub struct Formatter<T: ?Sized> {
-    pub name: String,
+    pub key: String,
     pub cb: FormatterCallback<T>,
 }
 
+/// Either a plain `Char`, or a function call back to be called later in `render`.
 pub enum FormatPiece<T: ?Sized> {
     Char(char),
     Formatter(Formatter<T>),
@@ -77,7 +84,7 @@ impl<T> ToFormatPieces<T> for FormatMap<T> {
                     let word = String::from_iter(&tmpl_vec[s..idx]);
                     match self.get(&word) {
                         Some(f) => {
-                            out.push(FormatPiece::Formatter(Formatter { name: word, cb: *f }))
+                            out.push(FormatPiece::Formatter(Formatter { key: word, cb: *f }))
                         }
                         None => return Err(Error::UnknownKey(word)),
                     };
@@ -107,7 +114,7 @@ impl<T> Render<T> for FormatPieces<T> {
                 FormatPiece::Formatter(f) => write!(
                     &mut out,
                     "{}",
-                    (f.cb)(data).ok_or_else(|| Error::NoData(f.name.to_string()))?
+                    (f.cb)(data).ok_or_else(|| Error::NoData(f.key.to_string()))?
                 )?,
             }
         }
@@ -117,8 +124,8 @@ impl<T> Render<T> for FormatPieces<T> {
 
 #[macro_export]
 macro_rules! fm {
-    ($name:tt, $cb:expr) => {
-        ($name.to_string(), $cb as $crate::FormatterCallback<_>)
+    ($key:tt, $cb:expr) => {
+        ($key.to_string(), $cb as $crate::FormatterCallback<_>)
     };
 }
 
