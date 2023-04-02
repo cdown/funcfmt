@@ -291,4 +291,36 @@ mod tests {
             "std::fmt::Write error"
         );
     }
+
+    #[test]
+    fn formatter_eq_based_on_key_only() {
+        let c1: FormatterCallback<String> = |e| Some(e.to_string());
+        let c2: FormatterCallback<String> = |e| Some(e.to_string());
+
+        let f1 = Formatter {
+            key: "foo".to_string(),
+            cb: c1,
+        };
+        let f2 = Formatter {
+            key: "foo".to_string(),
+            cb: c2,
+        };
+        let b1 = Formatter {
+            key: "bar".to_string(),
+            cb: c1,
+        };
+
+        assert_eq!(f1, f2);
+        assert_ne!(f1, b1);
+    }
+
+    #[test]
+    fn formatter_debug() {
+        let c1: FormatterCallback<String> = |e| Some(e.to_string());
+        let f1 = Formatter {
+            key: "foo".to_string(),
+            cb: c1,
+        };
+        assert_eq!(format!("{:?}", f1), "Formatter(key: foo)");
+    }
 }
