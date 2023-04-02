@@ -1,5 +1,5 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use ftempl::*;
+use funcfmt::*;
 use std::fmt::Write;
 
 fn criterion_benchmark(c: &mut Criterion) {
