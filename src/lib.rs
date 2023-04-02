@@ -65,7 +65,27 @@ pub enum FormatPiece<T> {
     Formatter(Formatter<T>),
 }
 
+/// A trait for processing a sequence of formatters and given template into a `FormatPieces<T>`.
 pub trait ToFormatPieces<T> {
+    /// Processes the given value into a `FormatPieces<T>`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use std::matches;
+    /// use funcfmt::{FormatMap, ToFormatPieces, fm, FormatPiece, FormatterCallback};
+    ///
+    /// // Usually you just pass this directly to fm!() and it will do the FormatterCallback<T>
+    /// // coercion for you, this is unwieldy to accommodate the comparison.
+    /// let closure = (|data| Some(format!("b{data}d"))) as FormatterCallback<String>;
+    /// let fmap: FormatMap<String> = FormatMap::from([fm!("foo", closure)]);
+    /// let fp = fmap.to_format_pieces("a{foo}e").unwrap();
+    /// let mut i = fp.iter();
+
+    /// assert_eq!(i.next(), Some(&FormatPiece::Char('a')));
+    /// assert!(matches!(i.next(), Some(FormatPiece::Formatter(_))));
+    /// assert_eq!(i.next(), Some(&FormatPiece::Char('e')));
+    /// ```
     fn to_format_pieces<S: AsRef<str>>(&self, tmpl: S) -> Result<FormatPieces<T>, Error>;
 }
 
@@ -114,7 +134,21 @@ impl<T> ToFormatPieces<T> for FormatMap<T> {
     }
 }
 
+/// A trait for rendering format pieces into a resulting `String`, given some input data to the
+/// callbacks.
 pub trait Render<T: ?Sized> {
+    /// Given some data, render the given format pieces into a `String`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use funcfmt::{FormatMap, ToFormatPieces, Render, fm};
+    ///
+    /// let fmap: FormatMap<String> = FormatMap::from([fm!("foo", |data| Some(format!("b{data}d")))]);
+    /// let fp = fmap.to_format_pieces("a{foo}e").unwrap();
+    /// let data = String::from("c");
+    /// assert_eq!(fp.render(&data), Ok("abcde".to_string()));
+    /// ```
     fn render(&self, data: &T) -> Result<String, Error>;
 }
 
