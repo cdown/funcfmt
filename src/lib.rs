@@ -207,22 +207,18 @@ mod tests {
 
     #[test]
     fn imbalance_open() {
-        // Done in a somewhat weird way since FormatPiece is not PartialEq
-        if let Err(err) = FORMATTERS.to_format_pieces("一{f{oo}二{bar}") {
-            assert_eq!(err, Error::ImbalancedBrackets);
-            return;
-        }
-        panic!();
+        assert_eq!(
+            FORMATTERS.to_format_pieces("一{f{oo}二{bar}"),
+            Err(Error::ImbalancedBrackets)
+        );
     }
 
     #[test]
     fn imbalance_close() {
-        // Done in a somewhat weird way since FormatPiece is not PartialEq
-        if let Err(err) = FORMATTERS.to_format_pieces("一{foo}}二{bar}") {
-            assert_eq!(err, Error::ImbalancedBrackets);
-            return;
-        }
-        panic!();
+        assert_eq!(
+            FORMATTERS.to_format_pieces("一{foo}}二{bar}"),
+            Err(Error::ImbalancedBrackets)
+        );
     }
 
     #[test]
@@ -235,12 +231,10 @@ mod tests {
 
     #[test]
     fn unknown_key() {
-        // Done in a somewhat weird way since FormatPiece is not PartialEq
-        if let Err(err) = FORMATTERS.to_format_pieces("一{baz}二{bar}") {
-            assert_eq!(err, Error::UnknownKey("baz".to_string()));
-            return;
-        }
-        panic!();
+        assert_eq!(
+            FORMATTERS.to_format_pieces("一{baz}二{bar}"),
+            Err(Error::UnknownKey("baz".to_string()))
+        );
     }
 
     #[test]
