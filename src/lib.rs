@@ -203,7 +203,7 @@ impl<T> Render<T> for FormatPieces<T> {
 /// ```
 #[macro_export]
 macro_rules! fm {
-    ($key:tt, $cb:expr) => {
+    ($key:expr, $cb:expr) => {
         ($key.to_string(), $cb as $crate::FormatterCallback<_>)
     };
 }
