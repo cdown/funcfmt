@@ -267,4 +267,15 @@ mod tests {
         let fp = FORMATTERS.to_format_pieces("一{foo}二{nodata}").unwrap();
         assert_eq!(fp.render(&inp), Err(Error::NoData("nodata".to_string())));
     }
+
+    #[test]
+    fn error_converts() {
+        let error = Error::ImbalancedBrackets;
+        let error: Box<dyn std::error::Error> = Box::new(error);
+        assert!(error.source().is_none());
+        assert_eq!(
+            error.downcast_ref::<Error>(),
+            Some(&Error::ImbalancedBrackets)
+        );
+    }
 }
