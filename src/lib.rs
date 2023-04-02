@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::fmt::Write;
+use std::fmt::{self, Write};
 use thiserror::Error;
 
 /// An error produced during formatting.
@@ -45,8 +45,22 @@ pub struct Formatter<T: ?Sized> {
     pub cb: FormatterCallback<T>,
 }
 
+impl<T> PartialEq for Formatter<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.key == other.key
+    }
+}
+impl<T> Eq for Formatter<T> {}
+
+impl<T> fmt::Debug for Formatter<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Formatter(key: {})", self.key)
+    }
+}
+
 /// Either a plain `Char`, or a function call back to be called later in `render`.
-pub enum FormatPiece<T: ?Sized> {
+#[derive(PartialEq, Eq, Debug)]
+pub enum FormatPiece<T> {
     Char(char),
     Formatter(Formatter<T>),
 }
