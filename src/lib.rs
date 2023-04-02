@@ -69,6 +69,17 @@ pub enum FormatPiece<T> {
 pub trait ToFormatPieces<T> {
     /// Processes the given value into a `FormatPieces<T>`.
     ///
+    /// # Template format
+    ///
+    /// The template `tmpl` takes keys in the format `{foo}`, which will be replaced with the output
+    /// from the callback registered to key "foo". Callbacks return an `Option<String>`.
+    ///
+    /// If you want to return literal "{foo}", pass `{{foo}}`.
+    ///
+    /// There are no restrictions on key names, other than that they cannot contain "{" or "}".
+    /// This is not enforced at construction time, but trying to use them will fail with
+    /// `Error::ImbalancedBrackets`.
+    ///
     /// # Example
     ///
     /// ```
