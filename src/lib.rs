@@ -75,10 +75,7 @@ pub trait ToFormatPieces<T> {
     /// use std::matches;
     /// use funcfmt::{FormatMap, ToFormatPieces, fm, FormatPiece, FormatterCallback};
     ///
-    /// // Usually you just pass this directly to fm!() and it will do the FormatterCallback<T>
-    /// // coercion for you, this is unwieldy to accommodate the comparison.
-    /// let closure = (|data| Some(format!("b{data}d"))) as FormatterCallback<String>;
-    /// let fmap: FormatMap<String> = FormatMap::from([fm!("foo", closure)]);
+    /// let fmap: FormatMap<String> = FormatMap::from([fm!("foo", |data| Some(format!("b{data}d")))]);
     /// let fp = fmap.to_format_pieces("a{foo}e").unwrap();
     /// let mut i = fp.iter();
 
