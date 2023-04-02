@@ -2,21 +2,31 @@ use std::collections::HashMap;
 use std::fmt::Write;
 use thiserror::Error;
 
+/// An error produced during formatting.
 #[derive(Error, Debug, PartialEq, Eq)]
-pub enum FormatError {
+pub enum Error {
+    /// A field was requested, but it has no entry in the provided `FormatMap<T>`. Stores the field
+    /// name which was unknown.
     #[error("unknown field '{0}'")]
     UnknownField(String),
 
+    /// No data available for a callback. Stores the field name which had no data available, i.e.,
+    /// the callback returned `None`.
     #[error("no data for field '{0}'")]
     NoData(String),
 
-    #[error("mismatched brackets in format")]
-    MismatchedBrackets,
+    /// The template provided had imbalanced brackets. If you want to escape { or }, use {{ or }}
+    /// respectively.
+    #[error("imbalanced brackets in template")]
+    ImbalancedBrackets,
 
+    /// An integer overflowed or underflowed internally.
     #[error("integer overflow/underflow")]
     Overflow,
 
-    #[error("fmt::Write error")]
+    /// An error occurred during writing the result of the closure to the eventual output `String`.
+    /// Stores the encapsulated error.
+    #[error("std::fmt::Write error")]
     Write(#[from] std::fmt::Error),
 }
 
@@ -35,11 +45,11 @@ pub enum FormatPiece<T: ?Sized> {
 }
 
 pub trait ToFormatPieces<T> {
-    fn to_format_pieces<S: AsRef<str>>(&self, tmpl: S) -> Result<FormatPieces<T>, FormatError>;
+    fn to_format_pieces<S: AsRef<str>>(&self, tmpl: S) -> Result<FormatPieces<T>, Error>;
 }
 
 impl<T> ToFormatPieces<T> for FormatMap<T> {
-    fn to_format_pieces<S: AsRef<str>>(&self, tmpl: S) -> Result<FormatPieces<T>, FormatError> {
+    fn to_format_pieces<S: AsRef<str>>(&self, tmpl: S) -> Result<FormatPieces<T>, Error> {
         // Need to be a bit careful to not index inside a character boundary
         let tmpl = tmpl.as_ref();
         let tmpl_vec = tmpl.chars().collect::<Vec<_>>();
@@ -52,24 +62,24 @@ impl<T> ToFormatPieces<T> for FormatMap<T> {
         while let Some((idx, cur)) = chars.next() {
             match (*cur, start_word_idx) {
                 ('{', 0) => {
-                    start_word_idx = idx.checked_add(1).ok_or(FormatError::Overflow)?;
+                    start_word_idx = idx.checked_add(1).ok_or(Error::Overflow)?;
                 }
-                ('{', s) if idx.checked_sub(s).ok_or(FormatError::Overflow)? == 0 => {
+                ('{', s) if idx.checked_sub(s).ok_or(Error::Overflow)? == 0 => {
                     out.push(FormatPiece::Char(*cur));
                     start_word_idx = 0;
                 }
-                ('{', _) => return Err(FormatError::MismatchedBrackets),
+                ('{', _) => return Err(Error::ImbalancedBrackets),
                 ('}', 0) if chars.next_if(|&(_, c)| c == &'}').is_some() => {
                     out.push(FormatPiece::Char(*cur));
                 }
-                ('}', 0) => return Err(FormatError::MismatchedBrackets),
+                ('}', 0) => return Err(Error::ImbalancedBrackets),
                 ('}', s) => {
                     let word = String::from_iter(&tmpl_vec[s..idx]);
                     match self.get(&word) {
                         Some(f) => {
                             out.push(FormatPiece::Formatter(Formatter { name: word, cb: *f }))
                         }
-                        None => return Err(FormatError::UnknownField(word)),
+                        None => return Err(Error::UnknownField(word)),
                     };
                     start_word_idx = 0;
                 }
@@ -84,21 +94,20 @@ impl<T> ToFormatPieces<T> for FormatMap<T> {
 }
 
 pub trait Render<T: ?Sized> {
-    fn render(&self, data: &T) -> Result<String, FormatError>;
+    fn render(&self, data: &T) -> Result<String, Error>;
 }
 
 impl<T> Render<T> for FormatPieces<T> {
-    fn render(&self, data: &T) -> Result<String, FormatError> {
+    fn render(&self, data: &T) -> Result<String, Error> {
         // Ballpark guess large enough to usually avoid extra allocations
-        let mut out =
-            String::with_capacity(self.len().checked_mul(4).ok_or(FormatError::Overflow)?);
+        let mut out = String::with_capacity(self.len().checked_mul(4).ok_or(Error::Overflow)?);
         for piece in self {
             match piece {
                 FormatPiece::Char(c) => out.push(*c),
                 FormatPiece::Formatter(f) => write!(
                     &mut out,
                     "{}",
-                    (f.cb)(data).ok_or_else(|| FormatError::NoData(f.name.to_string()))?
+                    (f.cb)(data).ok_or_else(|| Error::NoData(f.name.to_string()))?
                 )?,
             }
         }
@@ -138,7 +147,7 @@ mod tests {
     fn imbalance_open() {
         // Done in a somewhat weird way since FormatPiece is not PartialEq
         if let Err(err) = FORMATTERS.to_format_pieces("一{f{oo}二{bar}") {
-            assert_eq!(err, FormatError::MismatchedBrackets);
+            assert_eq!(err, Error::ImbalancedBrackets);
             return;
         }
         panic!();
@@ -148,7 +157,7 @@ mod tests {
     fn imbalance_close() {
         // Done in a somewhat weird way since FormatPiece is not PartialEq
         if let Err(err) = FORMATTERS.to_format_pieces("一{foo}}二{bar}") {
-            assert_eq!(err, FormatError::MismatchedBrackets);
+            assert_eq!(err, Error::ImbalancedBrackets);
             return;
         }
         panic!();
@@ -166,7 +175,7 @@ mod tests {
     fn unknown_field() {
         // Done in a somewhat weird way since FormatPiece is not PartialEq
         if let Err(err) = FORMATTERS.to_format_pieces("一{baz}二{bar}") {
-            assert_eq!(err, FormatError::UnknownField("baz".to_string()));
+            assert_eq!(err, Error::UnknownField("baz".to_string()));
             return;
         }
         panic!();
@@ -176,9 +185,6 @@ mod tests {
     fn no_data() {
         let inp = String::from("bar");
         let fp = FORMATTERS.to_format_pieces("一{foo}二{nodata}").unwrap();
-        assert_eq!(
-            fp.render(&inp),
-            Err(FormatError::NoData("nodata".to_string()))
-        );
+        assert_eq!(fp.render(&inp), Err(Error::NoData("nodata".to_string())));
     }
 }
