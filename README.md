@@ -8,7 +8,7 @@ pointers. It was originally created for
 
 The basic flow of func_template looks like this:
 
-1. Given a `Vec<Formatter<T>` called `formatters`, call
+1. Given a `FormatMap<T>` called `formatters`, call
    `formatters.to_format_pieces()`, which preprocesses everything into a
    `Vec<FormatPiece<T>>`, where `&T` is what your callback function will take
    as its only argument. This allows avoiding having to reparse the formatters

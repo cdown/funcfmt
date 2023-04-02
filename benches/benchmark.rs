@@ -3,10 +3,10 @@ use ftempl::*;
 use std::fmt::Write;
 
 fn criterion_benchmark(c: &mut Criterion) {
-    let mut formatters: Vec<Formatter<String>> = Vec::new();
+    let mut formatters: FormatMap<String> = FormatMap::new();
     let mut fmtstr = String::new();
     for i in 1..1000 {
-        formatters.push(fm!(i, |e| Some(format!("_{e}_"))));
+        formatters.insert(i.to_string(), |e| Some(format!("_{e}_")));
         write!(&mut fmtstr, "{{{}}}", i).unwrap();
     }
 

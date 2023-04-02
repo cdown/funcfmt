@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fmt::Write;
 use thiserror::Error;
 
@@ -20,29 +21,24 @@ pub enum FormatError {
 }
 
 pub type FormatterCallback<T> = fn(&T) -> Option<String>;
+pub type FormatMap<T> = HashMap<String, FormatterCallback<T>>;
 
 pub struct Formatter<T: ?Sized> {
     pub name: String,
     pub cb: FormatterCallback<T>,
 }
 
-pub enum FormatPiece<'a, T: ?Sized> {
+pub enum FormatPiece<T: ?Sized> {
     Char(char),
-    Formatter(&'a Formatter<T>),
+    Formatter(Formatter<T>),
 }
 
 pub trait ToFormatPieces<T> {
-    fn to_format_pieces<S: AsRef<str>>(
-        &self,
-        tmpl: S,
-    ) -> Result<Vec<FormatPiece<'_, T>>, FormatError>;
+    fn to_format_pieces<S: AsRef<str>>(&self, tmpl: S) -> Result<Vec<FormatPiece<T>>, FormatError>;
 }
 
-impl<T> ToFormatPieces<T> for Vec<Formatter<T>> {
-    fn to_format_pieces<S: AsRef<str>>(
-        &self,
-        tmpl: S,
-    ) -> Result<Vec<FormatPiece<'_, T>>, FormatError> {
+impl<T> ToFormatPieces<T> for FormatMap<T> {
+    fn to_format_pieces<S: AsRef<str>>(&self, tmpl: S) -> Result<Vec<FormatPiece<T>>, FormatError> {
         // Need to be a bit careful to not index inside a character boundary
         let tmpl = tmpl.as_ref();
         let tmpl_vec = tmpl.chars().collect::<Vec<_>>();
@@ -68,8 +64,10 @@ impl<T> ToFormatPieces<T> for Vec<Formatter<T>> {
                 ('}', 0) => return Err(FormatError::MismatchedBrackets),
                 ('}', s) => {
                     let word = String::from_iter(&tmpl_vec[s..idx]);
-                    match self.iter().find(|&f| f.name == word) {
-                        Some(f) => out.push(FormatPiece::Formatter(f)),
+                    match self.get(&word) {
+                        Some(f) => {
+                            out.push(FormatPiece::Formatter(Formatter { name: word, cb: *f }))
+                        }
                         None => return Err(FormatError::UnknownField(word)),
                     };
                     start_word_idx = 0;
@@ -88,14 +86,14 @@ pub trait Render<T: ?Sized> {
     fn render(&self, data: &T) -> Result<String, FormatError>;
 }
 
-impl<T> Render<T> for Vec<FormatPiece<'_, T>> {
+impl<T> Render<T> for Vec<FormatPiece<T>> {
     fn render(&self, data: &T) -> Result<String, FormatError> {
         // Ballpark guess large enough to usually avoid extra allocations
         let mut out =
             String::with_capacity(self.len().checked_mul(4).ok_or(FormatError::Overflow)?);
         for piece in self {
-            match *piece {
-                FormatPiece::Char(c) => out.push(c),
+            match piece {
+                FormatPiece::Char(c) => out.push(*c),
                 FormatPiece::Formatter(f) => write!(
                     &mut out,
                     "{}",
@@ -110,10 +108,7 @@ impl<T> Render<T> for Vec<FormatPiece<'_, T>> {
 #[macro_export]
 macro_rules! fm {
     ($name:tt, $cb:expr) => {
-        $crate::Formatter {
-            name: $name.to_string(),
-            cb: $cb,
-        }
+        ($name.to_string(), $cb as $crate::FormatterCallback<_>)
     };
 }
 
@@ -123,11 +118,11 @@ mod tests {
     use lazy_static::lazy_static;
 
     lazy_static! {
-        static ref FORMATTERS: Vec<Formatter<String>> = vec![
+        static ref FORMATTERS: FormatMap<String> = FormatMap::from([
             fm!("foo", |e| Some(format!("{e} foo {e}"))),
             fm!("bar", |e| Some(format!("{e} bar {e}"))),
             fm!("nodata", |_| None),
-        ];
+        ]);
     }
 
     #[test]
