@@ -78,11 +78,18 @@ pub trait ToFormatPieces<T> {
     /// let fmap: FormatMap<String> = FormatMap::from([fm!("foo", |data| Some(format!("b{data}d")))]);
     /// let fp = fmap.to_format_pieces("a{foo}e").unwrap();
     /// let mut i = fp.iter();
-
+    ///
     /// assert_eq!(i.next(), Some(&FormatPiece::Char('a')));
     /// assert!(matches!(i.next(), Some(FormatPiece::Formatter(_))));
     /// assert_eq!(i.next(), Some(&FormatPiece::Char('e')));
     /// ```
+    ///
+    /// # Errors
+    ///
+    /// - `Error::ImbalancedBrackets` if `tmpl` contains imbalanced brackets (use `{{` and `}}` to
+    ///    escape)
+    /// - `Error::Overflow` if internal string capacity calculation overflows
+    /// - `Error::UnknownKey` if a requested key has no associated callback
     fn to_format_pieces<S: AsRef<str>>(&self, tmpl: S) -> Result<FormatPieces<T>, Error>;
 }
 
@@ -146,6 +153,12 @@ pub trait Render<T: ?Sized> {
     /// let data = String::from("c");
     /// assert_eq!(fp.render(&data), Ok("abcde".to_string()));
     /// ```
+    ///
+    /// # Errors
+    ///
+    /// - `Error::NoData` if the callback returns `None`
+    /// - `Error::Overflow` if internal string capacity calculation overflows
+    /// - `Error::Write` if writing to the output `String` fails
     fn render(&self, data: &T) -> Result<String, Error>;
 }
 
