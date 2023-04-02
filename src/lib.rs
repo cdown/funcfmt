@@ -170,6 +170,16 @@ impl<T> Render<T> for FormatPieces<T> {
     }
 }
 
+/// Convenience macro to construct a single mapping for a `FormatMap`.
+///
+/// # Example
+///
+/// ```
+/// use funcfmt::{fm, FormatMap};
+///
+/// // "foo" becomes a string, and the closure is coerced into a FormatCallback<T>
+/// let fmap: FormatMap<String> = FormatMap::from([fm!("foo", |data| Some(format!("b{data}d")))]);
+/// ```
 #[macro_export]
 macro_rules! fm {
     ($key:tt, $cb:expr) => {
