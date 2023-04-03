@@ -1,6 +1,14 @@
 use funcfmt::{FormatMap, Render, ToFormatPieces};
 use std::fmt::Write;
 
+fn no_optim<T>(data: T) -> T {
+    unsafe {
+        let ret = std::ptr::read_volatile(&data);
+        std::mem::forget(data);
+        ret
+    }
+}
+
 fn main() {
     let mut formatters: FormatMap<String> = FormatMap::new();
     let mut fmtstr = String::new();
@@ -24,7 +32,7 @@ fn main() {
         let fp = formatters.to_format_pieces(&fmtstr).unwrap();
         for _ in 1..1000 {
             let inp = String::from("bar");
-            let fmt = fp.render(&inp).unwrap();
+            let fmt = fp.render(no_optim(&inp)).unwrap();
             assert_eq!(fmt, expected);
         }
     }
