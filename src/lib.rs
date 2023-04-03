@@ -1,4 +1,4 @@
-use smol_str::SmolStr;
+use smartstring::{LazyCompact, SmartString};
 use std::collections::HashMap;
 use std::fmt;
 use thiserror::Error;
@@ -9,12 +9,12 @@ pub enum Error {
     /// A key was requested, but it has no entry in the provided `FormatMap<T>`. Stores the key
     /// name which was unknown.
     #[error("unknown key '{0}'")]
-    UnknownKey(SmolStr),
+    UnknownKey(SmartString<LazyCompact>),
 
     /// No data available for a callback. Stores the key name which had no data available, i.e.,
     /// the callback returned `None`.
     #[error("no data for key '{0}'")]
-    NoData(SmolStr),
+    NoData(SmartString<LazyCompact>),
 
     /// The template provided had imbalanced brackets. If you want to escape { or }, use {{ or }}
     /// respectively.
@@ -35,14 +35,14 @@ pub enum Error {
 pub type FormatterCallback<T> = fn(&T) -> Option<String>;
 
 /// A mapping of keys to callback functions.
-pub type FormatMap<T> = HashMap<SmolStr, FormatterCallback<T>>;
+pub type FormatMap<T> = HashMap<SmartString<LazyCompact>, FormatterCallback<T>>;
 
 /// A container of either plain `Char`s or function callbacks to be called later in `render`.
 pub type FormatPieces<T> = Vec<FormatPiece<T>>;
 
 /// A container around the callback that also contains the name of the key.
 pub struct Formatter<T: ?Sized> {
-    pub key: SmolStr,
+    pub key: SmartString<LazyCompact>,
     pub cb: FormatterCallback<T>,
 }
 
