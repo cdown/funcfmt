@@ -2,6 +2,13 @@
 name = "funcfmt"
 version = "0.1.0"
 edition = "2021"
+authors = ["Chris Down <chris@chrisdown.name>"]
+description = "\"Parse once, populate many\" templating using function pointers"
+repository = "https://github.com/cdown/funcfmt"
+readme = "README.md"
+keywords = ["template"]
+categories = ["template-engine"]
+license = "MIT"
 
 [dependencies]
 smartstring = "1.0.1"
