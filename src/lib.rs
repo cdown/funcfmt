@@ -134,7 +134,7 @@ impl<T> ToFormatPieces<T> for FormatMap<T> {
                     let word = String::from_iter(&tmpl_vec[s..idx]).into();
                     match self.get(&word) {
                         Some(f) => {
-                            out.push(FormatPiece::Formatter(Formatter { key: word, cb: *f }))
+                            out.push(FormatPiece::Formatter(Formatter { key: word, cb: *f }));
                         }
                         None => return Err(Error::UnknownKey(word)),
                     };
@@ -182,7 +182,7 @@ impl<T> Render<T> for FormatPieces<T> {
             match piece {
                 FormatPiece::Char(c) => out.push(*c),
                 FormatPiece::Formatter(f) => {
-                    out.push_str(&(f.cb)(data).ok_or_else(|| Error::NoData(f.key.clone()))?)
+                    out.push_str(&(f.cb)(data).ok_or_else(|| Error::NoData(f.key.clone()))?);
                 }
             }
         }
