@@ -177,7 +177,7 @@ pub trait Render<T: ?Sized> {
 impl<T> Render<T> for FormatPieces<T> {
     fn render(&self, data: &T) -> Result<String, Error> {
         // Ballpark guess large enough to usually avoid extra allocations
-        let mut out = String::with_capacity(self.len().checked_mul(4).ok_or(Error::Overflow)?);
+        let mut out = String::with_capacity(self.len().checked_mul(16).ok_or(Error::Overflow)?);
         for piece in self {
             match piece {
                 FormatPiece::Char(c) => out.push(*c),
