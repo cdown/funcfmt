@@ -1,7 +1,7 @@
 # funcfmt | [![Tests](https://img.shields.io/github/actions/workflow/status/cdown/funcfmt/ci.yml?branch=master)](https://github.com/cdown/funcfmt/actions?query=branch%3Amaster)
 
 funcfmt is a simple, lightweight templating library that allows templating
-using custom runtime context and function pointers. It was originally created
+using custom runtime context and function traits. It was originally created
 for [exifrename](https://github.com/cdown/exifrename), to allow efficiently
 processing a format and set of callbacks across thousands of EXIF objects.
 
