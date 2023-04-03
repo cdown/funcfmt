@@ -14,7 +14,7 @@ fn main() {
     let mut fmtstr = String::new();
     let mut expected = String::new();
 
-    // exifrename-like performance case, ran 100 times
+    // exifrename-like performance case, ran 10000 times
     //
     // - About 20 tags
     // - A normal query uses maybe 1/3 of these
@@ -28,7 +28,7 @@ fn main() {
         }
     }
 
-    for _ in 1..100 {
+    for _ in 1..10000 {
         let fp = formatters.to_format_pieces(&fmtstr).unwrap();
         for _ in 1..1000 {
             let inp = String::from("bar");
