@@ -1,4 +1,4 @@
-# funcfmt
+# funcfmt | [![Tests](https://img.shields.io/github/actions/workflow/status/cdown/funcfmt/ci.yml?branch=master)](https://github.com/cdown/funcfmt/actions?query=branch%3Amaster)
 
 funcfmt allows templating using custom runtime context and function pointers.
 It was originally created for
