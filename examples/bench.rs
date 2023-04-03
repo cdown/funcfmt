@@ -21,10 +21,10 @@ fn main() {
     // - And you run over about 1000 files or so
 
     for i in 1..20 {
-        formatters.insert(i.to_string().into(), |e| Some(format!("_{e}_")));
+        formatters.insert(i.to_string().into(), |e| Some(e.to_string()));
         if i % 3 == 0 {
             write!(&mut fmtstr, "{{{}}}", i).unwrap();
-            write!(&mut expected, "_bar_").unwrap();
+            write!(&mut expected, "bar").unwrap();
         }
     }
 
