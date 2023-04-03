@@ -1,6 +1,6 @@
 use smol_str::SmolStr;
 use std::collections::HashMap;
-use std::fmt::{self, Write};
+use std::fmt;
 use thiserror::Error;
 
 /// An error produced during formatting.
@@ -181,11 +181,9 @@ impl<T> Render<T> for FormatPieces<T> {
         for piece in self {
             match piece {
                 FormatPiece::Char(c) => out.push(*c),
-                FormatPiece::Formatter(f) => write!(
-                    &mut out,
-                    "{}",
-                    (f.cb)(data).ok_or_else(|| Error::NoData(f.key.clone()))?
-                )?,
+                FormatPiece::Formatter(f) => {
+                    out.push_str(&(f.cb)(data).ok_or_else(|| Error::NoData(f.key.clone()))?)
+                }
             }
         }
         Ok(out)
