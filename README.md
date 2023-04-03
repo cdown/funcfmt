@@ -5,6 +5,11 @@ using custom runtime context and function pointers. It was originally created
 for [exifrename](https://github.com/cdown/exifrename), to allow efficiently
 processing a format and set of callbacks across thousands of EXIF objects.
 
+## Documentation
+
+Documentation is available on [docs.rs](https://docs.rs/funcfmt), or through
+`cargo doc --open`.
+
 ## Usage
 
 To add funcfmt to your dependencies:
