@@ -7,6 +7,12 @@ processing a format and set of callbacks across thousands of EXIF objects.
 
 ## Usage
 
+To add funcfmt to your dependencies:
+
+```
+cargo add funcfmt
+```
+
 The basic flow of funcfmt looks like this:
 
 1. Given a `FormatMap<T>` called `formatters`, call
