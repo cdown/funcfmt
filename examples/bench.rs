@@ -6,16 +6,26 @@ fn main() {
     let mut fmtstr = String::new();
     let mut expected = String::new();
 
+    // exifrename-like performance case, ran 100 times
+    //
+    // - About 20 tags
+    // - A normal query uses maybe 1/3 of these
+    // - And you run over about 1000 files or so
+
     for i in 1..20 {
         formatters.insert(i.to_string().into(), |e| Some(format!("_{e}_")));
-        write!(&mut fmtstr, "{{{}}}", i).unwrap();
-        write!(&mut expected, "_bar_").unwrap();
+        if i % 3 == 0 {
+            write!(&mut fmtstr, "{{{}}}", i).unwrap();
+            write!(&mut expected, "_bar_").unwrap();
+        }
     }
 
-    for _ in 1..100000 {
+    for _ in 1..100 {
         let fp = formatters.to_format_pieces(&fmtstr).unwrap();
-        let inp = String::from("bar");
-        let fmt = fp.render(&inp).unwrap();
-        assert_eq!(fmt, expected);
+        for _ in 1..1000 {
+            let inp = String::from("bar");
+            let fmt = fp.render(&inp).unwrap();
+            assert_eq!(fmt, expected);
+        }
     }
 }
