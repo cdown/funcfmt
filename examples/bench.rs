@@ -7,7 +7,7 @@ fn main() {
     let mut expected = String::new();
 
     for i in 1..20 {
-        formatters.insert(i.to_string(), |e| Some(format!("_{e}_")));
+        formatters.insert(i.to_string().into(), |e| Some(format!("_{e}_")));
         write!(&mut fmtstr, "{{{}}}", i).unwrap();
         write!(&mut expected, "_bar_").unwrap();
     }

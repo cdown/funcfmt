@@ -6,7 +6,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     let mut formatters: FormatMap<String> = FormatMap::new();
     let mut fmtstr = String::new();
     for i in 1..1000 {
-        formatters.insert(i.to_string(), |e| Some(format!("_{e}_")));
+        formatters.insert(i.to_string().into(), |e| Some(format!("_{e}_")));
         write!(&mut fmtstr, "{{{}}}", i).unwrap();
     }
 

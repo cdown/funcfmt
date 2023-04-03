@@ -1,3 +1,4 @@
+use smol_str::SmolStr;
 use std::collections::HashMap;
 use std::fmt::{self, Write};
 use thiserror::Error;
@@ -8,12 +9,12 @@ pub enum Error {
     /// A key was requested, but it has no entry in the provided `FormatMap<T>`. Stores the key
     /// name which was unknown.
     #[error("unknown key '{0}'")]
-    UnknownKey(String),
+    UnknownKey(SmolStr),
 
     /// No data available for a callback. Stores the key name which had no data available, i.e.,
     /// the callback returned `None`.
     #[error("no data for key '{0}'")]
-    NoData(String),
+    NoData(SmolStr),
 
     /// The template provided had imbalanced brackets. If you want to escape { or }, use {{ or }}
     /// respectively.
@@ -34,14 +35,14 @@ pub enum Error {
 pub type FormatterCallback<T> = fn(&T) -> Option<String>;
 
 /// A mapping of keys to callback functions.
-pub type FormatMap<T> = HashMap<String, FormatterCallback<T>>;
+pub type FormatMap<T> = HashMap<SmolStr, FormatterCallback<T>>;
 
 /// A container of either plain `Char`s or function callbacks to be called later in `render`.
 pub type FormatPieces<T> = Vec<FormatPiece<T>>;
 
 /// A container around the callback that also contains the name of the key.
 pub struct Formatter<T: ?Sized> {
-    pub key: String,
+    pub key: SmolStr,
     pub cb: FormatterCallback<T>,
 }
 
@@ -130,7 +131,7 @@ impl<T> ToFormatPieces<T> for FormatMap<T> {
                 }
                 ('}', 0) => return Err(Error::ImbalancedBrackets),
                 ('}', s) => {
-                    let word = String::from_iter(&tmpl_vec[s..idx]);
+                    let word = String::from_iter(&tmpl_vec[s..idx]).into();
                     match self.get(&word) {
                         Some(f) => {
                             out.push(FormatPiece::Formatter(Formatter { key: word, cb: *f }))
@@ -183,7 +184,7 @@ impl<T> Render<T> for FormatPieces<T> {
                 FormatPiece::Formatter(f) => write!(
                     &mut out,
                     "{}",
-                    (f.cb)(data).ok_or_else(|| Error::NoData(f.key.to_string()))?
+                    (f.cb)(data).ok_or_else(|| Error::NoData(f.key.clone()))?
                 )?,
             }
         }
@@ -204,7 +205,7 @@ impl<T> Render<T> for FormatPieces<T> {
 #[macro_export]
 macro_rules! fm {
     ($key:expr, $cb:expr) => {
-        ($key.to_string(), $cb as $crate::FormatterCallback<_>)
+        ($key.into(), $cb as $crate::FormatterCallback<_>)
     };
 }
 
@@ -257,7 +258,7 @@ mod tests {
     fn unknown_key() {
         assert_eq!(
             FORMATTERS.to_format_pieces("一{baz}二{bar}"),
-            Err(Error::UnknownKey("baz".to_string()))
+            Err(Error::UnknownKey("baz".into()))
         );
     }
 
@@ -265,7 +266,7 @@ mod tests {
     fn no_data() {
         let inp = String::from("bar");
         let fp = FORMATTERS.to_format_pieces("一{foo}二{nodata}").unwrap();
-        assert_eq!(fp.render(&inp), Err(Error::NoData("nodata".to_string())));
+        assert_eq!(fp.render(&inp), Err(Error::NoData("nodata".into())));
     }
 
     #[test]
@@ -298,15 +299,15 @@ mod tests {
         let c2: FormatterCallback<String> = |e| Some(e.to_string());
 
         let f1 = Formatter {
-            key: "foo".to_string(),
+            key: "foo".into(),
             cb: c1,
         };
         let f2 = Formatter {
-            key: "foo".to_string(),
+            key: "foo".into(),
             cb: c2,
         };
         let b1 = Formatter {
-            key: "bar".to_string(),
+            key: "bar".into(),
             cb: c1,
         };
 
@@ -318,7 +319,7 @@ mod tests {
     fn formatter_debug() {
         let c1: FormatterCallback<String> = |e| Some(e.to_string());
         let f1 = Formatter {
-            key: "foo".to_string(),
+            key: "foo".into(),
             cb: c1,
         };
         assert_eq!(format!("{:?}", f1), "Formatter(key: foo)");

@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+smol_str = "0.1.24"
 thiserror = "1.0.40"
 
 [dev-dependencies]
