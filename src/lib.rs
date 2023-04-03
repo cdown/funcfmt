@@ -1,6 +1,6 @@
-use std::collections::HashMap;
 use std::fmt::{self, Write};
 use thiserror::Error;
+use rustc_hash::FxHashMap;
 
 /// An error produced during formatting.
 #[derive(Error, Debug, PartialEq, Eq)]
@@ -34,7 +34,7 @@ pub enum Error {
 pub type FormatterCallback<T> = fn(&T) -> Option<String>;
 
 /// A mapping of keys to callback functions.
-pub type FormatMap<T> = HashMap<String, FormatterCallback<T>>;
+pub type FormatMap<T> = FxHashMap<String, FormatterCallback<T>>;
 
 /// A container of either plain `Char`s or function callbacks to be called later in `render`.
 pub type FormatPieces<T> = Vec<FormatPiece<T>>;
@@ -86,7 +86,8 @@ pub trait ToFormatPieces<T> {
     /// use std::matches;
     /// use funcfmt::{FormatMap, ToFormatPieces, fm, FormatPiece, FormatterCallback};
     ///
-    /// let fmap: FormatMap<String> = FormatMap::from([fm!("foo", |data| Some(format!("b{data}d")))]);
+    /// let fmap: FormatMap<String> = FormatMap::default();
+    /// fm!(fmap, "foo", |data| Some(format!("b{data}d")));
     /// let fp = fmap.to_format_pieces("a{foo}e").unwrap();
     /// let mut i = fp.iter();
     ///
@@ -199,12 +200,13 @@ impl<T> Render<T> for FormatPieces<T> {
 /// use funcfmt::{fm, FormatMap};
 ///
 /// // "foo" becomes a string, and the closure is coerced into a FormatCallback<T>
-/// let fmap: FormatMap<String> = FormatMap::from([fm!("foo", |data| Some(format!("b{data}d")))]);
+/// let fmap: FormatMap<String> = FormatMap::defaults();
+/// fm!(fmap, "foo", |data| Some(format!("b{data}d")));
 /// ```
 #[macro_export]
 macro_rules! fm {
-    ($key:expr, $cb:expr) => {
-        ($key.to_string(), $cb as $crate::FormatterCallback<_>)
+    ($map:ident, $key:expr, $cb:expr) => {
+        $map.insert($key.to_string(), $cb as $crate::FormatterCallback<_>)
     };
 }
 
@@ -214,11 +216,13 @@ mod tests {
     use lazy_static::lazy_static;
 
     lazy_static! {
-        static ref FORMATTERS: FormatMap<String> = FormatMap::from([
-            fm!("foo", |e| Some(format!("{e} foo {e}"))),
-            fm!("bar", |e| Some(format!("{e} bar {e}"))),
-            fm!("nodata", |_| None),
-        ]);
+        static ref FORMATTERS: FormatMap<String> = {
+            let mut f = FormatMap::default();
+            fm!(f, "foo", |e| Some(format!("{e} foo {e}")));
+            fm!(f, "bar", |e| Some(format!("{e} bar {e}")));
+            fm!(f, "nodata", |_| None);
+            f
+        };
     }
 
     #[test]

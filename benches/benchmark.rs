@@ -3,7 +3,7 @@ use funcfmt::*;
 use std::fmt::Write;
 
 fn criterion_benchmark(c: &mut Criterion) {
-    let mut formatters: FormatMap<String> = FormatMap::new();
+    let mut formatters: FormatMap<String> = FormatMap::default();
     let mut fmtstr = String::new();
     for i in 1..1000 {
         formatters.insert(i.to_string(), |e| Some(format!("_{e}_")));
