@@ -1,5 +1,6 @@
 use funcfmt::{FormatMap, Render, ToFormatPieces};
 use std::fmt::Write;
+use std::sync::Arc;
 
 fn no_optim<T>(data: T) -> T {
     unsafe {
@@ -21,7 +22,7 @@ fn main() {
     // - And you run over about 1000 files or so
 
     for i in 1..20 {
-        formatters.insert(i.to_string().into(), |e| Some(e.to_string()));
+        formatters.insert(i.to_string().into(), Arc::new(|e| Some(e.to_string())));
         if i % 3 == 0 {
             write!(&mut fmtstr, "{{{}}}", i).unwrap();
             write!(&mut expected, "bar").unwrap();

@@ -1,6 +1,7 @@
 use smartstring::{LazyCompact, SmartString};
 use std::collections::HashMap;
 use std::fmt;
+use std::sync::Arc;
 use thiserror::Error;
 
 /// An error produced during formatting.
@@ -32,7 +33,7 @@ pub enum Error {
 }
 
 /// A callback to be provided with data during rendering.
-pub type FormatterCallback<T> = fn(&T) -> Option<String>;
+pub type FormatterCallback<T> = Arc<dyn Fn(&T) -> Option<String> + Send + Sync>;
 
 /// A mapping of keys to callback functions.
 pub type FormatMap<T> = HashMap<SmartString<LazyCompact>, FormatterCallback<T>>;
@@ -134,7 +135,10 @@ impl<T> ToFormatPieces<T> for FormatMap<T> {
                     let word = String::from_iter(&tmpl_vec[s..idx]).into();
                     match self.get(&word) {
                         Some(f) => {
-                            out.push(FormatPiece::Formatter(Formatter { key: word, cb: *f }));
+                            out.push(FormatPiece::Formatter(Formatter {
+                                key: word,
+                                cb: f.clone(),
+                            }));
                         }
                         None => return Err(Error::UnknownKey(word)),
                     };
@@ -202,9 +206,10 @@ impl<T> Render<T> for FormatPieces<T> {
 /// ```
 #[macro_export]
 macro_rules! fm {
-    ($key:expr, $cb:expr) => {
-        ($key.into(), $cb as $crate::FormatterCallback<_>)
-    };
+    ($key:expr, $cb:expr) => {{
+        let cb: $crate::FormatterCallback<_> = std::sync::Arc::new($cb);
+        ($key.into(), cb)
+    }};
 }
 
 #[cfg(test)]
@@ -270,7 +275,7 @@ mod tests {
     #[test]
     fn error_converts() {
         let error = Error::ImbalancedBrackets;
-        let error: Box<dyn std::error::Error> = Box::new(error);
+        let error: Arc<dyn std::error::Error> = Arc::new(error);
         assert!(error.source().is_none());
         assert_eq!(
             error.downcast_ref::<Error>(),
@@ -293,12 +298,12 @@ mod tests {
 
     #[test]
     fn formatter_eq_based_on_key_only() {
-        let c1: FormatterCallback<String> = |e| Some(e.to_string());
-        let c2: FormatterCallback<String> = |e| Some(e.to_string());
+        let c1: FormatterCallback<String> = Arc::new(|e| Some(e.to_string()));
+        let c2: FormatterCallback<String> = Arc::new(|e| Some(e.to_string()));
 
         let f1 = Formatter {
             key: "foo".into(),
-            cb: c1,
+            cb: c1.clone(),
         };
         let f2 = Formatter {
             key: "foo".into(),
@@ -315,7 +320,7 @@ mod tests {
 
     #[test]
     fn formatter_debug() {
-        let c1: FormatterCallback<String> = |e| Some(e.to_string());
+        let c1: FormatterCallback<String> = Arc::new(|e| Some(e.to_string()));
         let f1 = Formatter {
             key: "foo".into(),
             cb: c1,
