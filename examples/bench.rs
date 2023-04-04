@@ -22,7 +22,10 @@ fn main() {
     // - And you run over about 1000 files or so
 
     for i in 1..20 {
-        formatters.insert(i.to_string().into(), Arc::new(|e| Some(e.to_string())));
+        formatters.insert(
+            i.to_string().into(),
+            Arc::new(no_optim(|e: &String| Some(e.to_string()))),
+        );
         if i % 3 == 0 {
             write!(&mut fmtstr, "{{{}}}", i).unwrap();
             write!(&mut expected, "bar").unwrap();
