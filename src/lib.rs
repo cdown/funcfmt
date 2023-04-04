@@ -215,15 +215,15 @@ macro_rules! fm {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use lazy_static::lazy_static;
+    use once_cell::sync::Lazy;
 
-    lazy_static! {
-        static ref FORMATTERS: FormatMap<String> = FormatMap::from([
+    static FORMATTERS: Lazy<FormatMap<String>> = Lazy::new(|| {
+        FormatMap::from([
             fm!("foo", |e| Some(format!("{e} foo {e}"))),
             fm!("bar", |e| Some(format!("{e} bar {e}"))),
             fm!("nodata", |_| None),
-        ]);
-    }
+        ])
+    });
 
     #[test]
     fn unicode_ok() {
