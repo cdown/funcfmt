@@ -275,7 +275,7 @@ mod tests {
     #[test]
     fn error_converts() {
         let error = Error::ImbalancedBrackets;
-        let error: Arc<dyn std::error::Error> = Arc::new(error);
+        let error: Box<dyn std::error::Error> = Box::new(error);
         assert!(error.source().is_none());
         assert_eq!(
             error.downcast_ref::<Error>(),
