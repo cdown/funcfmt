@@ -114,7 +114,7 @@ impl<T> ToFormatPieces<T> for FormatMap<T> {
         let mut chars = tmpl_vec.iter().enumerate().peekable();
 
         // Ballpark guesses large enough to usually avoid extra allocations
-        let mut out: FormatPieces<T> = FormatPieces::with_capacity(tmpl.len());
+        let mut out = FormatPieces::with_capacity(tmpl.len());
         let mut start_word_idx = 0;
 
         while let Some((idx, cur)) = chars.next() {
