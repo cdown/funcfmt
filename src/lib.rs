@@ -132,7 +132,7 @@ impl<T> ToFormatPieces<T> for FormatMap<T> {
                 ('}', 0) => return Err(Error::ImbalancedBrackets),
                 ('}', s) => {
                     // SAFETY: We are already at idx and know it is valid, and s is definitely at
-                    // a character boundary per .char_indices().
+                    // a character boundary per .char_indices(). This is about a 2% speedup.
                     let word = unsafe { tmpl.get_unchecked(s..idx) };
                     let word = word.into();
                     match self.get(&word) {
