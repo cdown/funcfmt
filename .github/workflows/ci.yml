@@ -15,6 +15,17 @@ jobs:
       - run: cargo test --release --all-features --all
       - run: cargo build --release --all-features
 
+  test_miri:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install Miri
+        run: |
+          MIRI_NIGHTLY=nightly-$(curl -s https://rust-lang.github.io/rustup-components-history/x86_64-unknown-linux-gnu/miri)
+          rustup default "$MIRI_NIGHTLY"
+          rustup component add miri
+      - run: cargo miri test
+
 on:
   push:
   pull_request:
