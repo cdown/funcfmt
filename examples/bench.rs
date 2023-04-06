@@ -1,5 +1,6 @@
 use funcfmt::{FormatMap, Render, ToFormatPieces};
 use std::fmt::Write;
+use std::option_env;
 use std::sync::Arc;
 
 fn no_optim<T>(data: T) -> T {
@@ -32,8 +33,15 @@ fn main() {
         }
     }
 
-    for _ in 1..10000 {
+    let fp_only = option_env!("FP_ONLY").is_some();
+
+    let rounds = if fp_only { 100000 } else { 1000 };
+
+    for _ in 1..rounds {
         let fp = formatters.to_format_pieces(&fmtstr).unwrap();
+        if fp_only {
+            continue;
+        }
         for _ in 1..1000 {
             let inp = String::from("bar");
             let fmt = fp.render(no_optim(&inp)).unwrap();
