@@ -110,29 +110,28 @@ impl<T> ToFormatPieces<T> for FormatMap<T> {
     fn to_format_pieces<S: AsRef<str>>(&self, tmpl: S) -> Result<FormatPieces<T>, Error> {
         // Need to be a bit careful to not index inside a character boundary
         let tmpl = tmpl.as_ref();
-        let tmpl_vec = tmpl.chars().collect::<Vec<_>>();
-        let mut chars = tmpl_vec.iter().enumerate().peekable();
+        let mut chars = tmpl.char_indices().peekable();
 
         // Ballpark guesses large enough to usually avoid extra allocations
         let mut out = FormatPieces::with_capacity(tmpl.len());
         let mut start_word_idx = 0;
 
         while let Some((idx, cur)) = chars.next() {
-            match (*cur, start_word_idx) {
+            match (cur, start_word_idx) {
                 ('{', 0) => {
                     start_word_idx = idx.checked_add(1).ok_or(Error::Overflow)?;
                 }
                 ('{', s) if idx.checked_sub(s).ok_or(Error::Overflow)? == 0 => {
-                    out.push(FormatPiece::Char(*cur));
+                    out.push(FormatPiece::Char(cur));
                     start_word_idx = 0;
                 }
                 ('{', _) => return Err(Error::ImbalancedBrackets),
-                ('}', 0) if chars.next_if(|&(_, c)| c == &'}').is_some() => {
-                    out.push(FormatPiece::Char(*cur));
+                ('}', 0) if chars.next_if(|&(_, c)| c == '}').is_some() => {
+                    out.push(FormatPiece::Char(cur));
                 }
                 ('}', 0) => return Err(Error::ImbalancedBrackets),
                 ('}', s) => {
-                    let word = String::from_iter(&tmpl_vec[s..idx]).into();
+                    let word = tmpl[s..idx].into();
                     match self.get(&word) {
                         Some(f) => {
                             out.push(FormatPiece::Formatter(Formatter {
