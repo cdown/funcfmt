@@ -42,7 +42,7 @@ pub type FormatMap<T> = FnvHashMap<SmartString<LazyCompact>, FormatterCallback<T
 pub type FormatPieces<T> = Vec<FormatPiece<T>>;
 
 /// A container around the callback that also contains the name of the key.
-pub struct Formatter<T: ?Sized> {
+pub struct Formatter<T> {
     pub key: SmartString<LazyCompact>,
     pub cb: FormatterCallback<T>,
 }
@@ -158,7 +158,7 @@ impl<T> ToFormatPieces<T> for FormatMap<T> {
 
 /// A trait for rendering format pieces into a resulting `String`, given some input data to the
 /// callbacks.
-pub trait Render<T: ?Sized> {
+pub trait Render<T> {
     /// Given some data, render the given format pieces into a `String`.
     ///
     /// # Example
