@@ -12,7 +12,7 @@ fn no_optim<T>(data: T) -> T {
 }
 
 fn main() {
-    let mut formatters: FormatMap<String> = FormatMap::new();
+    let mut formatters: FormatMap<String> = FormatMap::default();
     let mut fmtstr = String::new();
     let mut expected = String::new();
 

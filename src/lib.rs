@@ -1,5 +1,5 @@
+use fnv::FnvHashMap;
 use smartstring::{LazyCompact, SmartString};
-use std::collections::HashMap;
 use std::fmt;
 use std::sync::Arc;
 use thiserror::Error;
@@ -36,7 +36,7 @@ pub enum Error {
 pub type FormatterCallback<T> = Arc<dyn Fn(&T) -> Option<String> + Send + Sync>;
 
 /// A mapping of keys to callback functions.
-pub type FormatMap<T> = HashMap<SmartString<LazyCompact>, FormatterCallback<T>>;
+pub type FormatMap<T> = FnvHashMap<SmartString<LazyCompact>, FormatterCallback<T>>;
 
 /// A container of either plain `Char`s or function callbacks to be called later in `render`.
 pub type FormatPieces<T> = Vec<FormatPiece<T>>;
@@ -88,7 +88,7 @@ pub trait ToFormatPieces<T> {
     /// use std::matches;
     /// use funcfmt::{FormatMap, ToFormatPieces, fm, FormatPiece, FormatterCallback};
     ///
-    /// let fmap: FormatMap<String> = FormatMap::from([fm!("foo", |data| Some(format!("b{data}d")))]);
+    /// let fmap: FormatMap<String> = fm!(("foo", |data| Some(format!("b{data}d"))));
     /// let fp = fmap.to_format_pieces("a{foo}e").unwrap();
     /// let mut i = fp.iter();
     ///
@@ -166,7 +166,7 @@ pub trait Render<T: ?Sized> {
     /// ```
     /// use funcfmt::{FormatMap, ToFormatPieces, Render, fm};
     ///
-    /// let fmap: FormatMap<String> = FormatMap::from([fm!("foo", |data| Some(format!("b{data}d")))]);
+    /// let fmap = fm!(("foo", |data| Some(format!("b{data}d"))));
     /// let fp = fmap.to_format_pieces("a{foo}e").unwrap();
     /// let data = String::from("c");
     /// assert_eq!(fp.render(&data), Ok("abcde".to_string()));
@@ -204,13 +204,17 @@ impl<T> Render<T> for FormatPieces<T> {
 /// use funcfmt::{fm, FormatMap};
 ///
 /// // "foo" becomes a string, and the closure is coerced into a FormatCallback<T>
-/// let fmap: FormatMap<String> = FormatMap::from([fm!("foo", |data| Some(format!("b{data}d")))]);
+/// let fmap: FormatMap<String> = fm!(("foo", |data| Some(format!("b{data}d"))));
 /// ```
 #[macro_export]
 macro_rules! fm {
-    ($key:expr, $cb:expr) => {{
-        let cb: $crate::FormatterCallback<_> = std::sync::Arc::new($cb);
-        ($key.into(), cb)
+    ( $( ($key:expr, $value:expr) ),* $(,)?) => {{
+        let mut map = $crate::FormatMap::default();
+        $(
+            let cb: $crate::FormatterCallback<_> = std::sync::Arc::new($value);
+            map.insert($key.into(), cb);
+        )*
+        map
     }};
 }
 
@@ -220,11 +224,11 @@ mod tests {
     use once_cell::sync::Lazy;
 
     static FORMATTERS: Lazy<FormatMap<String>> = Lazy::new(|| {
-        FormatMap::from([
-            fm!("foo", |e| Some(format!("{e} foo {e}"))),
-            fm!("bar", |e| Some(format!("{e} bar {e}"))),
-            fm!("nodata", |_| None),
-        ])
+        fm!(
+            ("foo", |e| Some(format!("{e} foo {e}"))),
+            ("bar", |e| Some(format!("{e} bar {e}"))),
+            ("nodata", |_| None)
+        )
     });
 
     #[test]

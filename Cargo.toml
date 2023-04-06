@@ -11,6 +11,7 @@ categories = ["template-engine"]
 license = "MIT"
 
 [dependencies]
+fnv = "1.0.7"
 smartstring = "1.0.1"
 thiserror = "1.0.40"
 
