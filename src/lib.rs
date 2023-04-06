@@ -110,13 +110,14 @@ impl<T> ToFormatPieces<T> for FormatMap<T> {
     fn to_format_pieces<S: AsRef<str>>(&self, tmpl: S) -> Result<FormatPieces<T>, Error> {
         // Need to be a bit careful to not index inside a character boundary
         let tmpl = tmpl.as_ref();
-        let mut chars = tmpl.char_indices().peekable();
+        let chars = tmpl.char_indices();
 
         // Ballpark guesses large enough to usually avoid extra allocations
         let mut out = FormatPieces::with_capacity(tmpl.len());
         let mut start_word_idx = 0;
+        let mut pending_escape = false;
 
-        while let Some((idx, cur)) = chars.next() {
+        for (idx, cur) in chars {
             match (cur, start_word_idx) {
                 ('{', 0) => {
                     start_word_idx = idx.checked_add(1).ok_or(Error::Overflow)?;
@@ -126,10 +127,11 @@ impl<T> ToFormatPieces<T> for FormatMap<T> {
                     start_word_idx = 0;
                 }
                 ('{', _) => return Err(Error::ImbalancedBrackets),
-                ('}', 0) if chars.next_if(|&(_, c)| c == '}').is_some() => {
+                ('}', 0) if !pending_escape => pending_escape = true,
+                ('}', 0) if pending_escape => {
                     out.push(FormatPiece::Char(cur));
+                    pending_escape = false;
                 }
-                ('}', 0) => return Err(Error::ImbalancedBrackets),
                 ('}', s) => {
                     // SAFETY: We are already at idx and know it is valid, and s is definitely at
                     // a character boundary per .char_indices(). This is about a 2% speedup.
@@ -147,6 +149,7 @@ impl<T> ToFormatPieces<T> for FormatMap<T> {
                     start_word_idx = 0;
                 }
 
+                (_, _) if pending_escape => return Err(Error::ImbalancedBrackets),
                 (_, s) if s > 0 => {}
                 (c, _) => out.push(FormatPiece::Char(c)),
             }
