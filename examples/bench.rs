@@ -34,8 +34,13 @@ fn main() {
     }
 
     let fp_only = option_env!("FP_ONLY").is_some();
-
-    let rounds = if fp_only { 100000 } else { 1000 };
+    let rounds = if let Some(rounds) = option_env!("ROUNDS") {
+        rounds.parse::<i32>().unwrap()
+    } else if fp_only {
+        100000
+    } else {
+        1000
+    };
 
     for _ in 1..rounds {
         let fp = formatters.to_format_pieces(&fmtstr).unwrap();
