@@ -24,7 +24,9 @@ jobs:
           MIRI_NIGHTLY=nightly-$(curl -s https://rust-lang.github.io/rustup-components-history/x86_64-unknown-linux-gnu/miri)
           rustup default "$MIRI_NIGHTLY"
           rustup component add miri
-      - run: cargo miri test
+      # -Zmiri-disable-isolation: https://github.com/proptest-rs/proptest/issues/253
+      # PROPTEST_CASES=4: Miri is several thousand times slower than normal, we can't afford to do the default 256
+      - run: PROPTEST_CASES=4 MIRIFLAGS=-Zmiri-disable-isolation cargo miri test
 
 on:
   push:
