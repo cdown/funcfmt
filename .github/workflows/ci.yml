@@ -1,3 +1,6 @@
+env:
+  PROPTEST_DISABLE_FAILURE_PERSISTENCE: "true"
+
 jobs:
   test:
     name: Test
