@@ -1,6 +1,6 @@
 jobs:
-  build_and_test:
-    name: CI
+  test:
+    name: Test
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
@@ -15,7 +15,8 @@ jobs:
       - run: cargo test --release --all-features --all
       - run: cargo build --release --all-features
 
-  test_miri:
+  miri:
+    name: Miri
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
