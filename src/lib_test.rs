@@ -1,5 +1,6 @@
 use super::*;
 use once_cell::sync::Lazy;
+use proptest::prelude::*;
 
 static FORMATTERS: Lazy<FormatMap<String>> = Lazy::new(|| {
     fm!(
@@ -9,12 +10,26 @@ static FORMATTERS: Lazy<FormatMap<String>> = Lazy::new(|| {
     )
 });
 
-#[test]
-fn unicode_ok() {
-    let inp = String::from("bar");
-    let fp = FORMATTERS.to_format_pieces("一{foo}二{bar}").unwrap();
-    let fmt = fp.render(&inp);
-    assert_eq!(fmt, Ok("一bar foo bar二bar bar bar".to_owned()));
+proptest! {
+    // Disable failure persistence to please Miri
+    #![proptest_config(ProptestConfig {
+        failure_persistence: None,
+        ..Default::default()
+    })]
+
+    // \PC == invisible control characters and unused code points, the opposite of \pC
+    // tmpl: Any \PC which is not { or }, surrounding {foo} and {bar} one or more times.
+    #[test]
+    fn unicode_ok(
+        tmpl in r#"[^\p{C}{}]*\{foo\}[^\p{C}{}]*\{bar\}[^\p{C}{}]*"#,
+        inp in r#"\PC*"#,
+    ) {
+        let fp = FORMATTERS.to_format_pieces(tmpl).unwrap();
+        let fmt = fp.render(&inp).unwrap();
+        prop_assert!(fmt.contains(" foo "));
+        prop_assert!(fmt.contains(" bar "));
+        prop_assert!(fmt.contains(&inp));
+    }
 }
 
 #[test]
