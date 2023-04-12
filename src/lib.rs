@@ -3,6 +3,48 @@ use smartstring::{LazyCompact, SmartString};
 use std::fmt;
 use std::sync::Arc;
 use thiserror::Error;
+use nom::{
+    branch::alt,
+    bytes::complete::tag,
+    character::complete::{anychar, char},
+    combinator::map,
+    multi::many0,
+    sequence::{delimited, tuple},
+    bytes::complete::take_while1,
+    character::complete::alphanumeric1,
+    IResult,
+};
+
+fn is_not_brace(c: char) -> bool {
+    c != '{' && c != '}'
+}
+
+fn parse_format_piece<T>(input: &str) -> IResult<&str, FormatPiece<T>> {
+    alt((
+        map(take_while1(is_not_brace), |s: &str| {
+            FormatPiece::Char(s.chars().next().unwrap())
+        }),
+        map(
+            delimited(
+                tuple((char('{'), char('{'))),
+                anychar,
+                tuple((char('}'), char('}'))),
+            ),
+            |c| FormatPiece::Char(c),
+        ),
+        map(
+            delimited(char('{'), alphanumeric1, char('}')),
+            |key: &str| FormatPiece::Formatter(Formatter {
+                key: key.into(),
+                cb: Arc::new(|_| None), // Placeholder, to be replaced later
+            }),
+        ),
+    ))(input)
+}
+
+fn parse_format_pieces<T>(input: &str) -> IResult<&str, Vec<FormatPiece<T>>> {
+    many0(parse_format_piece)(input)
+}
 
 /// An error produced during formatting.
 #[derive(Error, Debug, PartialEq, Eq)]
@@ -108,53 +150,23 @@ pub trait ToFormatPieces<T> {
 
 impl<T> ToFormatPieces<T> for FormatMap<T> {
     fn to_format_pieces<S: AsRef<str>>(&self, tmpl: S) -> Result<FormatPieces<T>, Error> {
-        // Need to be a bit careful to not index inside a character boundary
         let tmpl = tmpl.as_ref();
-        let chars = tmpl.char_indices();
+        let (_, pieces) = parse_format_pieces(tmpl).map_err(|_| Error::ImbalancedBrackets)?;
 
-        // Ballpark guesses large enough to usually avoid extra allocations
-        let mut out = FormatPieces::with_capacity(tmpl.len());
-        let mut start_word_idx = 0;
-        let mut pending_escape = false;
-
-        for (idx, cur) in chars {
-            match (cur, start_word_idx) {
-                ('{', 0) => {
-                    start_word_idx = idx.checked_add(1).ok_or(Error::Overflow)?;
+        let mut out = Vec::with_capacity(pieces.len());
+        for piece in pieces {
+            match piece {
+                FormatPiece::Char(c) => out.push(FormatPiece::Char(c)),
+                FormatPiece::Formatter(mut formatter) => {
+                    if let Some(f) = self.get(&formatter.key) {
+                        formatter.cb = f.clone();
+                        out.push(FormatPiece::Formatter(formatter));
+                    } else {
+                        return Err(Error::UnknownKey(formatter.key.clone()));
+                    }
                 }
-                ('{', s) if idx.checked_sub(s).ok_or(Error::Overflow)? == 0 => {
-                    out.push(FormatPiece::Char(cur));
-                    start_word_idx = 0;
-                }
-                ('{', _) => return Err(Error::ImbalancedBrackets),
-                ('}', 0) if !pending_escape => pending_escape = true,
-                ('}', 0) if pending_escape => {
-                    out.push(FormatPiece::Char(cur));
-                    pending_escape = false;
-                }
-                ('}', s) => {
-                    // SAFETY: We are already at idx and know it is valid, and s is definitely at
-                    // a character boundary per .char_indices(). This is about a 2% speedup.
-                    let word = unsafe { tmpl.get_unchecked(s..idx) };
-                    let word = word.into();
-                    match self.get(&word) {
-                        Some(f) => {
-                            out.push(FormatPiece::Formatter(Formatter {
-                                key: word,
-                                cb: f.clone(),
-                            }));
-                        }
-                        None => return Err(Error::UnknownKey(word)),
-                    };
-                    start_word_idx = 0;
-                }
-
-                (_, _) if pending_escape => return Err(Error::ImbalancedBrackets),
-                (_, s) if s > 0 => {}
-                (c, _) => out.push(FormatPiece::Char(c)),
             }
         }
-
         Ok(out)
     }
 }
