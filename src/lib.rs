@@ -1,5 +1,6 @@
 use fnv::FnvHashMap;
 use smartstring::{LazyCompact, SmartString};
+use std::borrow::Borrow;
 use std::fmt;
 use std::sync::Arc;
 use thiserror::Error;
@@ -180,18 +181,20 @@ pub trait Render<T> {
     /// - `Error::NoData` if the callback returns `None`
     /// - `Error::Overflow` if internal string capacity calculation overflows
     /// - `Error::Write` if writing to the output `String` fails
-    fn render(&self, data: &T) -> Result<String, Error>;
+    fn render<D: Borrow<T>>(&self, data: D) -> Result<String, Error>;
 }
 
 impl<T> Render<T> for FormatPieces<T> {
-    fn render(&self, data: &T) -> Result<String, Error> {
+    fn render<D: Borrow<T>>(&self, data: D) -> Result<String, Error> {
         // Ballpark guess large enough to usually avoid extra allocations
         let mut out = String::with_capacity(self.len().checked_mul(16).ok_or(Error::Overflow)?);
         for piece in self {
             match piece {
                 FormatPiece::Char(c) => out.push(*c),
                 FormatPiece::Formatter(f) => {
-                    out.push_str(&(f.cb)(data).ok_or_else(|| Error::NoData(f.key.clone()))?);
+                    out.push_str(
+                        &(f.cb)(data.borrow()).ok_or_else(|| Error::NoData(f.key.clone()))?,
+                    );
                 }
             }
         }
