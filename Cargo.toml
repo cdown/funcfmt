@@ -9,6 +9,7 @@ readme = "README.md"
 keywords = ["template"]
 categories = ["template-engine"]
 license = "MIT"
+rust-version = "1.57.0"
 
 [dependencies]
 fnv = "1.0.7"
