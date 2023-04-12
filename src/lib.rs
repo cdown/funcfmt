@@ -4,6 +4,7 @@ use std::borrow::Borrow;
 use std::fmt;
 use std::sync::Arc;
 use thiserror::Error;
+use std::marker::PhantomData;
 
 /// An error produced during formatting.
 #[derive(Error, Debug, PartialEq, Eq)]
@@ -33,15 +34,22 @@ pub enum Error {
     Write(#[from] std::fmt::Error),
 }
 
-pub struct FormatterCallback<T: ?Sized, F: Fn(&T) -> Option<String> + Send + Sync + 'static>(Arc<F>);
+#[derive(Clone)]
+pub struct FormatterCallback<T: ?Sized, F: Fn(&T) -> Option<String> + Send + Sync + 'static> {
+    f: Arc<F>,
+    _marker: PhantomData<T>,
+}
 
 impl<T: ?Sized, F: Fn(&T) -> Option<String> + Send + Sync + 'static> FormatterCallback<T, F> {
     pub fn new(f: F) -> Self {
-        Self(Arc::new(f))
+        Self {
+            f: Arc::new(f),
+            _marker: PhantomData,
+        }
     }
 
     pub fn call<B: Borrow<T>>(&self, arg: B) -> Option<String> {
-        (self.0)(arg.borrow())
+        (self.f)(arg.borrow())
     }
 }
 
@@ -52,9 +60,9 @@ pub type FormatMap<T, F> = FnvHashMap<SmartString<LazyCompact>, FormatterCallbac
 pub type FormatPieces<T, F> = Vec<FormatPiece<T, F>>;
 
 /// A container around the callback that also contains the name of the key.
-pub struct Formatter<T, F: Fn(&T) -> Option<String> + Send + Sync + 'static> {
+pub struct Formatter<T: ?Sized, F: Fn(&T) -> Option<String> + Send + Sync + 'static> {
     pub key: SmartString<LazyCompact>,
-    pub cb: FormatterCallback<T, F>,
+    pub cb: Arc<F>,
 }
 
 impl<T, F: Fn(&T) -> Option<String> + Send + Sync> PartialEq for Formatter<T, F> {
@@ -151,7 +159,7 @@ impl<T, F: Fn(&T) -> Option<String> + Send + Sync> ToFormatPieces<T, F> for Form
                         Some(f) => {
                             out.push(FormatPiece::Formatter(Formatter {
                                 key: word,
-                                cb: f.clone(),
+                                cb: f.f.clone(),
                             }));
                         }
                         None => return Err(Error::UnknownKey(word)),
@@ -226,7 +234,7 @@ macro_rules! fm {
     ( $( ($key:expr, $value:expr) ),* $(,)?) => {{
         let mut map = $crate::FormatMap::default();
         $(
-            let cb: $crate::FormatterCallback<_> = std::sync::Arc::new($value);
+            let cb: $crate::FormatterCallback::new($value);
             map.insert($key.into(), cb);
         )*
         map
