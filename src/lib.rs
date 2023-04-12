@@ -1,6 +1,7 @@
 use fnv::FnvHashMap;
 use smartstring::{LazyCompact, SmartString};
 use std::fmt;
+use std::rc::Rc;
 use std::sync::Arc;
 use thiserror::Error;
 
@@ -33,7 +34,14 @@ pub enum Error {
 }
 
 /// A callback to be provided with data during rendering.
-pub type FormatterCallback<T> = Arc<dyn Fn(&T) -> Option<String> + Send + Sync>;
+pub type RawFormatterCallback<T> = dyn Fn(&T) -> Option<String> + Send + Sync;
+
+#[derive(Clone)]
+pub enum FormatterCallback<T: Clone> {
+    Local(Rc<RawFormatterCallback<T>>),
+    Global(Arc<RawFormatterCallback<T>>),
+}
+
 
 /// A mapping of keys to callback functions.
 pub type FormatMap<T> = FnvHashMap<SmartString<LazyCompact>, FormatterCallback<T>>;
@@ -42,19 +50,19 @@ pub type FormatMap<T> = FnvHashMap<SmartString<LazyCompact>, FormatterCallback<T
 pub type FormatPieces<T> = Vec<FormatPiece<T>>;
 
 /// A container around the callback that also contains the name of the key.
-pub struct Formatter<T> {
+pub struct Formatter<T: Clone> {
     pub key: SmartString<LazyCompact>,
     pub cb: FormatterCallback<T>,
 }
 
-impl<T> PartialEq for Formatter<T> {
+impl<T: Clone> PartialEq for Formatter<T> {
     fn eq(&self, other: &Self) -> bool {
         self.key == other.key
     }
 }
-impl<T> Eq for Formatter<T> {}
+impl<T: Clone> Eq for Formatter<T> {}
 
-impl<T> fmt::Debug for Formatter<T> {
+impl<T: Clone> fmt::Debug for Formatter<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Formatter(key: {})", self.key)
     }
@@ -62,13 +70,13 @@ impl<T> fmt::Debug for Formatter<T> {
 
 /// Either a plain `Char`, or a function call back to be called later in `render`.
 #[derive(PartialEq, Eq, Debug)]
-pub enum FormatPiece<T> {
+pub enum FormatPiece<T: Clone> {
     Char(char),
     Formatter(Formatter<T>),
 }
 
 /// A trait for processing a sequence of formatters and given template into a `FormatPieces<T>`.
-pub trait ToFormatPieces<T> {
+pub trait ToFormatPieces<T: Clone> {
     /// Processes the given value into a `FormatPieces<T>`.
     ///
     /// # Template format
@@ -106,7 +114,7 @@ pub trait ToFormatPieces<T> {
     fn to_format_pieces<S: AsRef<str>>(&self, tmpl: S) -> Result<FormatPieces<T>, Error>;
 }
 
-impl<T> ToFormatPieces<T> for FormatMap<T> {
+impl<T: Clone> ToFormatPieces<T> for FormatMap<T> {
     fn to_format_pieces<S: AsRef<str>>(&self, tmpl: S) -> Result<FormatPieces<T>, Error> {
         // Need to be a bit careful to not index inside a character boundary
         let tmpl = tmpl.as_ref();
@@ -183,15 +191,16 @@ pub trait Render<T> {
     fn render(&self, data: &T) -> Result<String, Error>;
 }
 
-impl<T> Render<T> for FormatPieces<T> {
+impl<T: Clone> Render<T> for FormatPieces<T> {
     fn render(&self, data: &T) -> Result<String, Error> {
         // Ballpark guess large enough to usually avoid extra allocations
         let mut out = String::with_capacity(self.len().checked_mul(16).ok_or(Error::Overflow)?);
         for piece in self {
             match piece {
                 FormatPiece::Char(c) => out.push(*c),
-                FormatPiece::Formatter(f) => {
-                    out.push_str(&(f.cb)(data).ok_or_else(|| Error::NoData(f.key.clone()))?);
+                FormatPiece::Formatter(f) => match &f.cb {
+                    FormatterCallback::Local(c) => { out.push_str(&c(data).ok_or_else(|| Error::NoData(f.key.clone()))?); },
+                    FormatterCallback::Global(c) => { out.push_str(&c(data).ok_or_else(|| Error::NoData(f.key.clone()))?); },
                 }
             }
         }
@@ -214,7 +223,7 @@ macro_rules! fm {
     ( $( ($key:expr, $value:expr) ),* $(,)?) => {{
         let mut map = $crate::FormatMap::default();
         $(
-            let cb: $crate::FormatterCallback<_> = std::sync::Arc::new($value);
+            let cb: $crate::FormatterCallback::Local(std::sync::Rc::new($value as $crate::RawFormatterCallback<_>))
             map.insert($key.into(), cb);
         )*
         map
