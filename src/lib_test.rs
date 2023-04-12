@@ -27,6 +27,15 @@ proptest! {
 }
 
 #[test]
+fn with_spaces() {
+    let fp = FORMATTERS.to_format_pieces("一 {foo} 二 {bar} ").unwrap();
+    let fmt = fp.render(&"bar".to_owned());
+    assert_eq!(
+        fmt,
+        Ok("一 bar foo bar 二 bar bar bar ".to_owned()));
+}
+
+#[test]
 fn imbalance_open() {
     assert_eq!(
         FORMATTERS.to_format_pieces("一{f{oo}二{bar}"),

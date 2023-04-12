@@ -15,13 +15,9 @@ use nom::{
     IResult,
 };
 
-fn is_not_brace(c: char) -> bool {
-    c != '{' && c != '}'
-}
-
 fn parse_format_piece<T>(input: &str) -> IResult<&str, FormatPiece<T>> {
     alt((
-        map(take_while1(is_not_brace), |s: &str| {
+        map(take_while1(|c| c != '{' && c != '}'), |s: &str| {
             FormatPiece::Char(s.chars().next().unwrap())
         }),
         map(
