@@ -33,29 +33,38 @@ pub enum Error {
     Write(#[from] std::fmt::Error),
 }
 
-/// A callback to be provided with data during rendering.
-pub type FormatterCallback<T> = Arc<dyn Fn(&T) -> Option<String> + Send + Sync>;
+pub struct FormatterCallback<T: ?Sized, F: Fn(&T) -> Option<String> + Send + Sync + 'static>(Arc<F>);
 
-/// A mapping of keys to callback functions.
-pub type FormatMap<T> = FnvHashMap<SmartString<LazyCompact>, FormatterCallback<T>>;
+impl<T: ?Sized, F: Fn(&T) -> Option<String> + Send + Sync + 'static> FormatterCallback<T, F> {
+    pub fn new(f: F) -> Self {
+        Self(Arc::new(f))
+    }
 
-/// A container of either plain `Char`s or function callbacks to be called later in `render`.
-pub type FormatPieces<T> = Vec<FormatPiece<T>>;
-
-/// A container around the callback that also contains the name of the key.
-pub struct Formatter<T> {
-    pub key: SmartString<LazyCompact>,
-    pub cb: FormatterCallback<T>,
+    pub fn call<B: Borrow<T>>(&self, arg: B) -> Option<String> {
+        (self.0)(arg.borrow())
+    }
 }
 
-impl<T> PartialEq for Formatter<T> {
+/// A mapping of keys to callback functions.
+pub type FormatMap<T, F> = FnvHashMap<SmartString<LazyCompact>, FormatterCallback<T, F>>;
+
+/// A container of either plain `Char`s or function callbacks to be called later in `render`.
+pub type FormatPieces<T, F> = Vec<FormatPiece<T, F>>;
+
+/// A container around the callback that also contains the name of the key.
+pub struct Formatter<T, F: Fn(&T) -> Option<String> + Send + Sync + 'static> {
+    pub key: SmartString<LazyCompact>,
+    pub cb: FormatterCallback<T, F>,
+}
+
+impl<T, F: Fn(&T) -> Option<String> + Send + Sync> PartialEq for Formatter<T, F> {
     fn eq(&self, other: &Self) -> bool {
         self.key == other.key
     }
 }
-impl<T> Eq for Formatter<T> {}
+impl<T, F: Fn(&T) -> Option<String> + Send + Sync> Eq for Formatter<T, F> {}
 
-impl<T> fmt::Debug for Formatter<T> {
+impl<T, F: Fn(&T) -> Option<String> + Send + Sync> fmt::Debug for Formatter<T, F> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Formatter(key: {})", self.key)
     }
@@ -63,13 +72,13 @@ impl<T> fmt::Debug for Formatter<T> {
 
 /// Either a plain `Char`, or a function call back to be called later in `render`.
 #[derive(PartialEq, Eq, Debug)]
-pub enum FormatPiece<T> {
+pub enum FormatPiece<T, F: Fn(&T) -> Option<String> + Send + Sync + 'static> {
     Char(char),
-    Formatter(Formatter<T>),
+    Formatter(Formatter<T, F>),
 }
 
-/// A trait for processing a sequence of formatters and given template into a `FormatPieces<T>`.
-pub trait ToFormatPieces<T> {
+// A trait for processing a sequence of formatters and given template into a `FormatPieces<T>`.
+pub trait ToFormatPieces<T, F: Fn(&T) -> Option<String> + Send + Sync> {
     /// Processes the given value into a `FormatPieces<T>`.
     ///
     /// # Template format
@@ -104,11 +113,11 @@ pub trait ToFormatPieces<T> {
     ///    escape)
     /// - `Error::Overflow` if internal string capacity calculation overflows
     /// - `Error::UnknownKey` if a requested key has no associated callback
-    fn to_format_pieces<S: AsRef<str>>(&self, tmpl: S) -> Result<FormatPieces<T>, Error>;
+    fn to_format_pieces<S: AsRef<str>>(&self, tmpl: S) -> Result<FormatPieces<T, F>, Error>;
 }
 
-impl<T> ToFormatPieces<T> for FormatMap<T> {
-    fn to_format_pieces<S: AsRef<str>>(&self, tmpl: S) -> Result<FormatPieces<T>, Error> {
+impl<T, F: Fn(&T) -> Option<String> + Send + Sync> ToFormatPieces<T, F> for FormatMap<T, F> {
+    fn to_format_pieces<S: AsRef<str>>(&self, tmpl: S) -> Result<FormatPieces<T, F>, Error> {
         // Need to be a bit careful to not index inside a character boundary
         let tmpl = tmpl.as_ref();
         let chars = tmpl.char_indices();
@@ -184,7 +193,7 @@ pub trait Render<T> {
     fn render<D: Borrow<T>>(&self, data: D) -> Result<String, Error>;
 }
 
-impl<T> Render<T> for FormatPieces<T> {
+impl<T, F: Fn(&T) -> Option<String> + Send + Sync> Render<T> for FormatPieces<T, F> {
     fn render<D: Borrow<T>>(&self, data: D) -> Result<String, Error> {
         // Ballpark guess large enough to usually avoid extra allocations
         let mut out = String::with_capacity(self.len().checked_mul(16).ok_or(Error::Overflow)?);
