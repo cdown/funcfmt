@@ -4,6 +4,7 @@ use std::borrow::Borrow;
 use std::fmt;
 use std::sync::Arc;
 use thiserror::Error;
+use std::hash::Hash;
 
 /// An error produced during formatting.
 #[derive(Error, Debug, PartialEq, Eq)]
@@ -107,7 +108,12 @@ pub trait ToFormatPieces<T> {
     fn to_format_pieces<S: AsRef<str>>(&self, tmpl: S) -> Result<FormatPieces<T>, Error>;
 }
 
-impl<T> ToFormatPieces<T> for FormatMap<T> {
+
+impl<T, U> ToFormatPieces<T> for FormatMap<U>
+where
+    U: Borrow<T>,
+    T: Hash + Eq,
+{
     fn to_format_pieces<S: AsRef<str>>(&self, tmpl: S) -> Result<FormatPieces<T>, Error> {
         // Need to be a bit careful to not index inside a character boundary
         let tmpl = tmpl.as_ref();
