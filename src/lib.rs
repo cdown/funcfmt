@@ -1,7 +1,7 @@
 use fnv::FnvHashMap;
 use smartstring::{LazyCompact, SmartString};
 use std::fmt;
-use std::sync::Arc;
+use std::rc::Rc;
 use thiserror::Error;
 
 /// An error produced during formatting.
@@ -33,7 +33,7 @@ pub enum Error {
 }
 
 /// A callback to be provided with data during rendering.
-pub type FormatterCallback<T> = Arc<dyn Fn(&T) -> Option<String> + Send + Sync>;
+pub type FormatterCallback<T> = Rc<dyn Fn(&T) -> Option<String> + Send + Sync>;
 
 /// A mapping of keys to callback functions.
 pub type FormatMap<T> = FnvHashMap<SmartString<LazyCompact>, FormatterCallback<T>>;
@@ -214,7 +214,7 @@ macro_rules! fm {
     ( $( ($key:expr, $value:expr) ),* $(,)?) => {{
         let mut map = $crate::FormatMap::default();
         $(
-            let cb: $crate::FormatterCallback<_> = std::sync::Arc::new($value);
+            let cb: $crate::FormatterCallback<_> = std::rc::Rc::new($value);
             map.insert($key.into(), cb);
         )*
         map

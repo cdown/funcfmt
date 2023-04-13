@@ -1,7 +1,7 @@
 use funcfmt::{FormatMap, Render, ToFormatPieces};
 use std::fmt::Write;
 use std::option_env;
-use std::sync::Arc;
+use std::rc::Rc;
 
 fn no_optim<T>(data: T) -> T {
     unsafe {
@@ -25,7 +25,7 @@ fn main() {
     for i in 1..20 {
         formatters.insert(
             i.to_string().into(),
-            Arc::new(no_optim(|e: &String| Some(e.to_string()))),
+            Rc::new(no_optim(|e: &String| Some(e.to_string()))),
         );
         if i % 3 == 0 {
             write!(&mut fmtstr, "{{{}}}", i).unwrap();
