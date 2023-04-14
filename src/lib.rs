@@ -1,4 +1,5 @@
 use fnv::FnvHashMap;
+use smallvec::SmallVec;
 use smartstring::{LazyCompact, SmartString};
 use std::fmt;
 use std::sync::Arc;
@@ -39,7 +40,7 @@ pub type FormatterCallback<T> = Arc<dyn Fn(&T) -> Option<String> + Send + Sync>;
 pub type FormatMap<T> = FnvHashMap<SmartString<LazyCompact>, FormatterCallback<T>>;
 
 /// A container of either plain `Char`s or function callbacks to be called later in `render`.
-pub type FormatPieces<T> = Vec<FormatPiece<T>>;
+pub type FormatPieces<T> = SmallVec<[FormatPiece<T>; 256]>; // ~40b per FormatPiece<T>, ~10kb total
 
 /// A container around the callback that also contains the name of the key.
 pub struct Formatter<T> {

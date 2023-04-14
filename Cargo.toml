@@ -13,6 +13,7 @@ rust-version = "1.57.0"
 
 [dependencies]
 fnv = "1.0.7"
+smallvec = { version = "1.10.0", features = ["union"] }
 smartstring = "1.0.1"
 thiserror = "1.0.40"
 
