@@ -115,17 +115,17 @@ impl<T> ToFormatPieces<T> for FormatMap<T> {
 
         // Ballpark guesses large enough to usually avoid extra allocations
         let mut out = FormatPieces::with_capacity(tmpl.len());
-        let mut start_word_idx = 0;
+        let mut start_key_idx = 0;
         let mut pending_escape = false;
 
         for (idx, cur) in chars {
-            match (cur, start_word_idx) {
+            match (cur, start_key_idx) {
                 ('{', 0) => {
-                    start_word_idx = idx.checked_add(1).ok_or(Error::Overflow)?;
+                    start_key_idx = idx.checked_add(1).ok_or(Error::Overflow)?;
                 }
                 ('{', s) if idx.checked_sub(s).ok_or(Error::Overflow)? == 0 => {
                     out.push(FormatPiece::Char(cur));
-                    start_word_idx = 0;
+                    start_key_idx = 0;
                 }
                 ('{', _) => return Err(Error::ImbalancedBrackets),
                 ('}', 0) if !pending_escape => pending_escape = true,
@@ -136,18 +136,15 @@ impl<T> ToFormatPieces<T> for FormatMap<T> {
                 ('}', s) => {
                     // SAFETY: We are already at idx and know it is valid, and s is definitely at
                     // a character boundary per .char_indices(). This is about a 2% speedup.
-                    let word = unsafe { tmpl.get_unchecked(s..idx) };
-                    let word = word.into();
-                    match self.get(&word) {
+                    let key = unsafe { tmpl.get_unchecked(s..idx) };
+                    let key = key.into();
+                    match self.get(&key) {
                         Some(f) => {
-                            out.push(FormatPiece::Formatter(Formatter {
-                                key: word,
-                                cb: f.clone(),
-                            }));
+                            out.push(FormatPiece::Formatter(Formatter { key, cb: f.clone() }));
                         }
-                        None => return Err(Error::UnknownKey(word)),
+                        None => return Err(Error::UnknownKey(key)),
                     };
-                    start_word_idx = 0;
+                    start_key_idx = 0;
                 }
 
                 (_, _) if pending_escape => return Err(Error::ImbalancedBrackets),
