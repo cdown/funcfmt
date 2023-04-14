@@ -1,4 +1,4 @@
-use fnv::FnvHashMap;
+use halfbrown::HashMap;
 use smallvec::SmallVec;
 use smartstring::{LazyCompact, SmartString};
 use std::fmt;
@@ -37,7 +37,7 @@ pub enum Error {
 pub type FormatterCallback<T> = Arc<dyn Fn(&T) -> Option<String> + Send + Sync>;
 
 /// A mapping of keys to callback functions.
-pub type FormatMap<T> = FnvHashMap<SmartString<LazyCompact>, FormatterCallback<T>>;
+pub type FormatMap<T> = HashMap<SmartString<LazyCompact>, FormatterCallback<T>>;
 
 /// A container of either plain `Char`s or function callbacks to be called later in `render`.
 pub type FormatPieces<T> = SmallVec<[FormatPiece<T>; 256]>; // ~40b per FormatPiece<T>, ~10kb total
