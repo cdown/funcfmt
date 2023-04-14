@@ -64,7 +64,7 @@ impl<T> fmt::Debug for Formatter<T> {
 /// Either a plain `Char`, or a function call back to be called later in `render`.
 #[derive(PartialEq, Eq, Debug)]
 pub enum FormatPiece<T> {
-    Char(char),
+    Verbatim(SmartString<LazyCompact>),
     Formatter(Formatter<T>),
 }
 
@@ -90,12 +90,12 @@ pub trait ToFormatPieces<T> {
     /// use funcfmt::{FormatMap, ToFormatPieces, fm, FormatPiece, FormatterCallback};
     ///
     /// let fmap: FormatMap<String> = fm!(("foo", |data| Some(format!("b{data}d"))));
-    /// let fp = fmap.to_format_pieces("a{foo}e").unwrap();
+    /// let fp = fmap.to_format_pieces("ab{foo}e").unwrap();
     /// let mut i = fp.iter();
     ///
-    /// assert_eq!(i.next(), Some(&FormatPiece::Char('a')));
+    /// assert_eq!(i.next(), Some(&FormatPiece::Verbatim("ab".into())));
     /// assert!(matches!(i.next(), Some(FormatPiece::Formatter(_))));
-    /// assert_eq!(i.next(), Some(&FormatPiece::Char('e')));
+    /// assert_eq!(i.next(), Some(&FormatPiece::Verbatim("e".into())));
     /// ```
     ///
     /// # Errors
@@ -117,21 +117,32 @@ impl<T> ToFormatPieces<T> for FormatMap<T> {
         let mut out = FormatPieces::with_capacity(tmpl.len());
         let mut start_key_idx = 0;
         let mut pending_escape = false;
+        let mut last_pushed_idx = 0;
+
+        macro_rules! push_verb {
+            ($out:expr, $tmpl:expr, $range:expr) => {
+                $out.push(FormatPiece::Verbatim($tmpl[$range].into()));
+            };
+        }
 
         for (idx, cur) in chars {
             match (cur, start_key_idx) {
                 ('{', 0) => {
+                    push_verb!(out, tmpl, last_pushed_idx..idx);
                     start_key_idx = idx.checked_add(1).ok_or(Error::Overflow)?;
                 }
                 ('{', s) if idx.checked_sub(s).ok_or(Error::Overflow)? == 0 => {
-                    out.push(FormatPiece::Char(cur));
                     start_key_idx = 0;
+                    last_pushed_idx = idx;
                 }
                 ('{', _) => return Err(Error::ImbalancedBrackets),
-                ('}', 0) if !pending_escape => pending_escape = true,
+                ('}', 0) if !pending_escape => {
+                    pending_escape = true;
+                    push_verb!(out, tmpl, last_pushed_idx..idx);
+                }
                 ('}', 0) if pending_escape => {
-                    out.push(FormatPiece::Char(cur));
                     pending_escape = false;
+                    last_pushed_idx = idx;
                 }
                 ('}', s) => {
                     // SAFETY: We are already at idx and know it is valid, and s is definitely at
@@ -145,12 +156,19 @@ impl<T> ToFormatPieces<T> for FormatMap<T> {
                         None => return Err(Error::UnknownKey(key)),
                     };
                     start_key_idx = 0;
+                    last_pushed_idx = idx.checked_add(1).ok_or(Error::Overflow)?;
                 }
 
-                (_, _) if pending_escape => return Err(Error::ImbalancedBrackets),
-                (_, s) if s > 0 => {}
-                (c, _) => out.push(FormatPiece::Char(c)),
+                _ => {
+                    if pending_escape {
+                        return Err(Error::ImbalancedBrackets);
+                    }
+                }
             }
+        }
+
+        if last_pushed_idx < tmpl.len() {
+            push_verb!(out, tmpl, last_pushed_idx..);
         }
 
         Ok(out)
@@ -187,7 +205,7 @@ impl<T> Render<T> for FormatPieces<T> {
         let mut out = String::with_capacity(self.len().checked_mul(16).ok_or(Error::Overflow)?);
         for piece in self {
             match piece {
-                FormatPiece::Char(c) => out.push(*c),
+                FormatPiece::Verbatim(s) => out.push_str(s),
                 FormatPiece::Formatter(f) => {
                     out.push_str(&(f.cb)(data).ok_or_else(|| Error::NoData(f.key.clone()))?);
                 }
