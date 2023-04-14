@@ -1,11 +1,11 @@
 use funcfmt::{fm, Render, ToFormatPieces};
 
 fn main() {
-    let formatters = fm!(
-        ("foo", |data| Some(format!("foo: {data}"))),
-        ("bar", |data| Some(format!("bar: {data}"))),
-        ("baz", |data| Some(format!("baz: {data}"))),
-    );
+    let formatters = fm! {
+        "foo" => |data| Some(format!("foo: {data}")),
+        "bar" => |data| Some(format!("bar: {data}")),
+        "baz" => |data| Some(format!("baz: {data}")),
+    };
 
     let fp = formatters.to_format_pieces("{foo}, {bar}").unwrap();
 
