@@ -121,7 +121,10 @@ impl<T> ToFormatPieces<T> for FormatMap<T> {
 
         macro_rules! push_verb {
             ($out:expr, $tmpl:expr, $range:expr) => {
-                $out.push(FormatPiece::Verbatim($tmpl[$range].into()));
+                // SAFETY: The range is definitely at a character boundary per .char_indices(), and
+                // ends at idx. This is about a 3.5% speedup.
+                let unpushed = unsafe { $tmpl.get_unchecked($range) };
+                $out.push(FormatPiece::Verbatim(unpushed.into()));
             };
         }
 
