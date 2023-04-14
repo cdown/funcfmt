@@ -28,8 +28,8 @@ fn main() {
             Arc::new(no_optim(|e: &String| Some(e.to_string()))),
         );
         if i % 3 == 0 {
-            write!(&mut fmtstr, "{{{}}}", i).unwrap();
-            write!(&mut expected, "bar").unwrap();
+            write!(&mut fmtstr, "ab {{{}}} cd", i).unwrap();
+            write!(&mut expected, "ab bar cd").unwrap();
         }
     }
 
