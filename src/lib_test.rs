@@ -3,11 +3,11 @@ use once_cell::sync::Lazy;
 use proptest::prelude::*;
 
 static FORMATTERS: Lazy<FormatMap<String>> = Lazy::new(|| {
-    fm!(
-        ("foo", |e| Some(format!("{e} foo {e}"))),
-        ("bar", |e| Some(format!("{e} bar {e}"))),
-        ("nodata", |_| None)
-    )
+    fm! {
+        "foo" => |e| Some(format!("{e} foo {e}")),
+        "bar" => |e| Some(format!("{e} bar {e}")),
+        "nodata" => |_| None,
+    }
 });
 
 proptest! {

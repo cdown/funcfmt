@@ -89,7 +89,7 @@ pub trait ToFormatPieces<T> {
     /// use std::matches;
     /// use funcfmt::{FormatMap, ToFormatPieces, fm, FormatPiece, FormatterCallback};
     ///
-    /// let fmap: FormatMap<String> = fm!(("foo", |data| Some(format!("b{data}d"))));
+    /// let fmap: FormatMap<String> = fm!{"foo" => |data| Some(format!("b{data}d"))};
     /// let fp = fmap.to_format_pieces("ab{foo}e").unwrap();
     /// let mut i = fp.iter();
     ///
@@ -188,7 +188,7 @@ pub trait Render<T> {
     /// ```
     /// use funcfmt::{FormatMap, ToFormatPieces, Render, fm};
     ///
-    /// let fmap = fm!(("foo", |data| Some(format!("b{data}d"))));
+    /// let fmap = fm!{"foo" => |data| Some(format!("b{data}d"))};
     /// let fp = fmap.to_format_pieces("a{foo}e").unwrap();
     /// let data = String::from("c");
     /// assert_eq!(fp.render(&data), Ok("abcde".to_string()));
@@ -226,18 +226,25 @@ impl<T> Render<T> for FormatPieces<T> {
 /// ```
 /// use funcfmt::{fm, FormatMap};
 ///
-/// let fmap: FormatMap<String> = fm!(("foo", |data| Some(format!("b{data}d"))));
+/// let fmap: FormatMap<String> = fm!{"foo" => |data| Some(format!("b{data}d"))};
 /// ```
 #[macro_export]
 macro_rules! fm {
-    ( $( ($key:expr, $value:expr) ),* $(,)?) => {{
-        let mut map = $crate::FormatMap::default();
-        $(
-            let cb: $crate::FormatterCallback<_> = std::sync::Arc::new($value);
-            map.insert($key.into(), cb);
-        )*
-        map
-    }};
+    (@single $($x:tt)*) => (());
+    (@count $($rest:expr),*) => (<[()]>::len(&[$(fm!(@single $rest)),*]));
+
+    ($($key:expr => $value:expr,)+) => { fm!($($key => $value),+) };
+    ($($key:expr => $value:expr),*) => {
+        {
+            let nr = fm!(@count $($key),*);
+            let mut map = $crate::FormatMap::with_capacity(nr);
+            $(
+                let cb: $crate::FormatterCallback<_> = std::sync::Arc::new($value);
+                map.insert($key.into(), cb);
+            )*
+            map
+        }
+    };
 }
 
 #[cfg(test)]
