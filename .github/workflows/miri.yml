@@ -1,0 +1,22 @@
+env:
+  PROPTEST_DISABLE_FAILURE_PERSISTENCE: "true"
+
+jobs:
+  miri:
+    name: Miri
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install Miri
+        run: |
+          miri_nightly=nightly-$(curl -s https://rust-lang.github.io/rustup-components-history/x86_64-unknown-linux-gnu/miri)
+          rustup default "$miri_nightly"
+          rustup component add miri
+      # -Zmiri-disable-isolation: https://github.com/proptest-rs/proptest/issues/253
+      # PROPTEST_CASES=8: Miri is several thousand times slower than normal, we can't afford to do the default 256
+      - run: PROPTEST_CASES=8 MIRIFLAGS=-Zmiri-disable-isolation cargo miri test
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
